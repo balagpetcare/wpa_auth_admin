@@ -37,6 +37,17 @@ export default function TopBar() {
   }, [])
 
   useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target?.closest('.profile-button, .profile-dropdown')) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [])
+
+  useEffect(() => {
     document.documentElement.dataset.menuSize = sidebarOpen ? 'hidden' : 'default'
     document.body.classList.toggle('sidebar-enable', sidebarOpen)
     return () => {

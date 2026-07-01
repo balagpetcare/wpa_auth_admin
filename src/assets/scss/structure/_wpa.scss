@@ -90,4 +90,32 @@
   .wrapper .main-nav {
     z-index: 1055;
   }
+
+  .wrapper .main-nav {
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  body.sidebar-enable .wrapper .main-nav {
+    transform: translateX(0);
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+  }
+
+  body.sidebar-enable .page-content::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.42);
+    z-index: 1040;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .topbar-title-main {
+    font-size: 14px;
+  }
+
+  .profile-dropdown {
+    min-width: 200px;
+  }
 }
