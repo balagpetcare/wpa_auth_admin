@@ -1,47 +1,73 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { apiClient } from '@/lib/apiClient'
+import { Badge, Card, CardBody, CardHeader, CardTitle, Spinner } from 'react-bootstrap'
+
+type Session = { id: string; user?: string; ip?: string; lastSeen?: string; status?: string }
 
 export default function SessionsPage() {
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
+  const [state, setState] = useState<'ready' | 'empty' | 'unavailable'>('ready')
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = localStorage.getItem('accessToken')
+        const response = await apiClient(token).get<any>('/sessions')
+        const list = Array.isArray(response?.items) ? response.items : Array.isArray(response?.sessions) ? response.sessions : []
+        setSessions(list)
+        setState(list.length ? 'ready' : 'empty')
+      } catch {
+        setState('unavailable')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   return (
-    <div>
-      <div style={{ marginBottom: '40px' }}>
-        <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#2c3e50' }}>
-          Sessions
-        </h1>
-        <p style={{ margin: '0', fontSize: '16px', color: '#7f8c8d' }}>
-          Monitor and manage active user sessions
-        </p>
+    <>
+      <div className="page-title-box">
+        <div>
+          <h1 className="mb-1">Sessions</h1>
+          <p className="text-muted mb-0">Active user sessions and last activity.</p>
+        </div>
+        <Link href="/dashboard" className="btn btn-light">Back to dashboard</Link>
       </div>
 
-      <div style={{
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        padding: '40px',
-        textAlign: 'center',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        border: '1px solid #e9ecef',
-      }}>
-        <div style={{ fontSize: '64px', marginBottom: '20px' }}>💾</div>
-        <h2 style={{ margin: '0 0 12px 0', color: '#2c3e50' }}>User Sessions</h2>
-        <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>
-          This feature is currently under development. You'll be able to view and manage user sessions here.
-        </p>
-        <Link
-          href="/dashboard"
-          style={{
-            display: 'inline-block',
-            padding: '10px 20px',
-            backgroundColor: '#3498db',
-            color: '#fff',
-            borderRadius: '6px',
-            textDecoration: 'none',
-            fontWeight: '500',
-          }}
-        >
-          ← Back to Dashboard
-        </Link>
-      </div>
-    </div>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="bg-transparent border-0 p-4 pb-0">
+          <CardTitle as="h4" className="mb-0">Session monitor</CardTitle>
+        </CardHeader>
+        <CardBody className="p-4">
+          {loading && <div className="py-5 text-center text-muted"><Spinner animation="border" size="sm" className="me-2" />Loading sessions...</div>}
+          {!loading && state === 'unavailable' && <div className="alert alert-soft-warning mb-0">Sessions endpoint is unavailable.</div>}
+          {!loading && state === 'empty' && <div className="alert alert-soft-secondary mb-0">No active sessions were returned by the API.</div>}
+          {!loading && state === 'ready' && (
+            <div className="table-responsive">
+              <table className="table table-centered table-hover mb-0">
+                <thead className="bg-light bg-opacity-50">
+                  <tr><th>User</th><th>IP</th><th>Last seen</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {sessions.map((session) => (
+                    <tr key={session.id}>
+                      <td className="fw-semibold text-dark">{session.user || 'Unknown user'}</td>
+                      <td className="text-muted">{session.ip || 'Unavailable'}</td>
+                      <td className="text-muted">{session.lastSeen ? new Date(session.lastSeen).toLocaleString() : 'Unavailable'}</td>
+                      <td><Badge bg={session.status === 'active' ? 'success' : 'secondary'}>{session.status || 'unknown'}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </>
   )
 }

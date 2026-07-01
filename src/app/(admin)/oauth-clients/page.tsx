@@ -1,47 +1,76 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { apiClient } from '@/lib/apiClient'
+import { Badge, Card, CardBody, CardHeader, CardTitle, Spinner } from 'react-bootstrap'
+
+type Client = { id: string; name?: string; clientId?: string; status?: string; redirectUris?: string[] }
 
 export default function OAuthClientsPage() {
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
+  const [state, setState] = useState<'ready' | 'empty' | 'unavailable'>('ready')
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = localStorage.getItem('accessToken')
+        const response = await apiClient(token).get<any>('/oauth-clients')
+        const list = Array.isArray(response?.items) ? response.items : Array.isArray(response?.clients) ? response.clients : []
+        setClients(list)
+        setState(list.length ? 'ready' : 'empty')
+      } catch {
+        setState('unavailable')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   return (
-    <div>
-      <div style={{ marginBottom: '40px' }}>
-        <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#2c3e50' }}>
-          OAuth Clients
-        </h1>
-        <p style={{ margin: '0', fontSize: '16px', color: '#7f8c8d' }}>
-          Manage OAuth 2.0 applications and API clients
-        </p>
+    <>
+      <div className="page-title-box">
+        <div>
+          <h1 className="mb-1">OAuth Clients</h1>
+          <p className="text-muted mb-0">Connected applications and client status.</p>
+        </div>
+        <div className="d-flex gap-2">
+          <Link href="/dashboard" className="btn btn-light">Back to dashboard</Link>
+          <button className="btn btn-primary" disabled title="Create client depends on backend support">Create client</button>
+        </div>
       </div>
 
-      <div style={{
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        padding: '40px',
-        textAlign: 'center',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        border: '1px solid #e9ecef',
-      }}>
-        <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔑</div>
-        <h2 style={{ margin: '0 0 12px 0', color: '#2c3e50' }}>OAuth Clients</h2>
-        <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>
-          This feature is currently under development. You'll be able to manage OAuth clients and credentials here.
-        </p>
-        <Link
-          href="/dashboard"
-          style={{
-            display: 'inline-block',
-            padding: '10px 20px',
-            backgroundColor: '#3498db',
-            color: '#fff',
-            borderRadius: '6px',
-            textDecoration: 'none',
-            fontWeight: '500',
-          }}
-        >
-          ← Back to Dashboard
-        </Link>
-      </div>
-    </div>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="bg-transparent border-0 p-4 pb-0">
+          <CardTitle as="h4" className="mb-0">Client applications</CardTitle>
+        </CardHeader>
+        <CardBody className="p-4">
+          {loading && <div className="py-5 text-center text-muted"><Spinner animation="border" size="sm" className="me-2" />Loading OAuth clients...</div>}
+          {!loading && state === 'unavailable' && <div className="alert alert-soft-warning mb-0">OAuth clients endpoint is unavailable.</div>}
+          {!loading && state === 'empty' && <div className="alert alert-soft-secondary mb-0">No OAuth clients were returned by the API.</div>}
+          {!loading && state === 'ready' && (
+            <div className="table-responsive">
+              <table className="table table-centered table-hover mb-0">
+                <thead className="bg-light bg-opacity-50">
+                  <tr><th>Name</th><th>Client ID</th><th>Redirect URIs</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  {clients.map((client) => (
+                    <tr key={client.id}>
+                      <td className="fw-semibold text-dark">{client.name || 'Unnamed client'}</td>
+                      <td className="text-muted">{client.clientId || 'Unavailable'}</td>
+                      <td className="text-muted">{client.redirectUris?.length ? `${client.redirectUris.length} URI(s)` : 'Unavailable'}</td>
+                      <td><Badge bg={client.status === 'active' ? 'success' : 'secondary'}>{client.status || 'unknown'}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </>
   )
 }

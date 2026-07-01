@@ -1,47 +1,73 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { apiClient } from '@/lib/apiClient'
+import { Badge, Card, CardBody, CardHeader, CardTitle, Spinner } from 'react-bootstrap'
+
+type SecurityLog = { id: string; type?: string; user?: string; severity?: string; timestamp?: string }
 
 export default function SecurityLogsPage() {
+  const [logs, setLogs] = useState<SecurityLog[]>([])
+  const [loading, setLoading] = useState(true)
+  const [state, setState] = useState<'ready' | 'empty' | 'unavailable'>('ready')
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = localStorage.getItem('accessToken')
+        const response = await apiClient(token).get<any>('/security-logs')
+        const list = Array.isArray(response?.items) ? response.items : Array.isArray(response?.logs) ? response.logs : []
+        setLogs(list)
+        setState(list.length ? 'ready' : 'empty')
+      } catch {
+        setState('unavailable')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
   return (
-    <div>
-      <div style={{ marginBottom: '40px' }}>
-        <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#2c3e50' }}>
-          Security Logs
-        </h1>
-        <p style={{ margin: '0', fontSize: '16px', color: '#7f8c8d' }}>
-          View security events and access logs
-        </p>
+    <>
+      <div className="page-title-box">
+        <div>
+          <h1 className="mb-1">Security Logs</h1>
+          <p className="text-muted mb-0">Authentication and access events from the admin perimeter.</p>
+        </div>
+        <Link href="/dashboard" className="btn btn-light">Back to dashboard</Link>
       </div>
 
-      <div style={{
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        padding: '40px',
-        textAlign: 'center',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        border: '1px solid #e9ecef',
-      }}>
-        <div style={{ fontSize: '64px', marginBottom: '20px' }}>🛡️</div>
-        <h2 style={{ margin: '0 0 12px 0', color: '#2c3e50' }}>Security Logs</h2>
-        <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>
-          This feature is currently under development. You'll be able to view security events and access logs here.
-        </p>
-        <Link
-          href="/dashboard"
-          style={{
-            display: 'inline-block',
-            padding: '10px 20px',
-            backgroundColor: '#3498db',
-            color: '#fff',
-            borderRadius: '6px',
-            textDecoration: 'none',
-            fontWeight: '500',
-          }}
-        >
-          ← Back to Dashboard
-        </Link>
-      </div>
-    </div>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="bg-transparent border-0 p-4 pb-0">
+          <CardTitle as="h4" className="mb-0">Security activity</CardTitle>
+        </CardHeader>
+        <CardBody className="p-4">
+          {loading && <div className="py-5 text-center text-muted"><Spinner animation="border" size="sm" className="me-2" />Loading security logs...</div>}
+          {!loading && state === 'unavailable' && <div className="alert alert-soft-warning mb-0">Security logs endpoint is unavailable.</div>}
+          {!loading && state === 'empty' && <div className="alert alert-soft-secondary mb-0">No security logs were returned by the API.</div>}
+          {!loading && state === 'ready' && (
+            <div className="table-responsive">
+              <table className="table table-centered table-hover mb-0">
+                <thead className="bg-light bg-opacity-50">
+                  <tr><th>Type</th><th>User</th><th>Severity</th><th>Time</th></tr>
+                </thead>
+                <tbody>
+                  {logs.map((log) => (
+                    <tr key={log.id}>
+                      <td className="fw-semibold text-dark">{log.type || 'Unknown event'}</td>
+                      <td className="text-muted">{log.user || 'System'}</td>
+                      <td><Badge bg={log.severity === 'high' ? 'danger' : log.severity === 'medium' ? 'warning' : 'info'}>{log.severity || 'unknown'}</Badge></td>
+                      <td className="text-muted">{log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unavailable'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </>
   )
 }
