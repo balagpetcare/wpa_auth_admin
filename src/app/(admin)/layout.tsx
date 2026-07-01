@@ -1,8 +1,8 @@
 'use client'
 
 import { ReactNode } from 'react'
-import Sidebar from '@/components/layout/Sidebar'
-import TopBar from '@/components/layout/TopBar'
+import VerticalNavigationBar from '@/components/layout/VerticalNavigationBar'
+import TopNavigationBar from '@/components/layout/TopNavigationBar'
 import AuthProtection from '@/components/layout/AuthProtection'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
@@ -13,16 +13,11 @@ export default function AdminLayout({
 }) {
   return (
     <AuthProtection>
-      <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
-        <Sidebar />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <TopBar />
-          <main style={{
-            flex: 1,
-            padding: '30px 40px',
-            overflowY: 'auto',
-            backgroundColor: '#f8f9fa',
-          }}>
+      <div className="wrapper">
+        <VerticalNavigationBar />
+        <div className="page-content">
+          <TopNavigationBar />
+          <main className="container-fluid py-4">
             {children}
           </main>
         </div>
