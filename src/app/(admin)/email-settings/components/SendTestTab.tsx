@@ -1,182 +1,99 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Alert, Button, Card, CardBody, Col, Form, Row, Spinner } from 'react-bootstrap'
+import { emailApi } from './emailSettingsApi'
 
 interface SendTestTabProps {
   clientId: string | null
-  locale: string
+  locale: 'en' | 'bn'
 }
 
 export default function SendTestTab({ clientId, locale }: SendTestTabProps) {
-  const [testEmail, setTestEmail] = useState('')
-  const [templateType, setTemplateType] = useState('welcome')
+  const [recipient, setRecipient] = useState('')
+  const [templateKey, setTemplateKey] = useState('welcome')
+  const [senderInfo, setSenderInfo] = useState<{ senderName?: string; senderEmail?: string }>({})
   const [sending, setSending] = useState(false)
-  const [result, setResult] = useState<{ success?: boolean; message?: string } | null>(null)
+  const [result, setResult] = useState<{ kind: 'success' | 'warning' | 'danger'; text: string } | null>(null)
 
-  const handleSendTest = async () => {
-    if (!testEmail) {
-      setResult({ success: false, message: 'Please enter an email address' })
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await emailApi.branding(clientId)
+        const payload = response.data?.data ?? response.data ?? {}
+        setSenderInfo({ senderName: payload.senderName, senderEmail: payload.senderEmail })
+      } catch {
+        setSenderInfo({})
+      }
+    }
+    load()
+  }, [clientId])
+
+  const handleSend = async () => {
+    if (!recipient) {
+      setResult({ kind: 'danger', text: 'Please enter a recipient email.' })
       return
     }
 
     setSending(true)
     setResult(null)
-
     try {
-      const token = localStorage.getItem('accessToken')
-      if (!token) {
-        setResult({ success: false, message: 'Not authenticated' })
-        return
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5010/api/v1'}/admin/email-settings/send-test`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            email: testEmail,
-            templateType,
-            clientId: clientId || undefined,
-            locale,
-          }),
-        }
-      )
-
-      const data = await response.json()
-      if (response.ok) {
-        setResult({ success: true, message: 'Test email sent successfully!' })
-        setTestEmail('')
-      } else {
-        setResult({ success: false, message: data.message || 'Failed to send test email' })
-      }
+      const response = await emailApi.sendTest({
+        recipient,
+        templateKey,
+        clientId: clientId || 'global',
+        locale,
+      })
+      setResult(response.available ? { kind: 'success', text: 'Test email request completed.' } : { kind: 'warning', text: 'Send test endpoint is unavailable.' })
     } catch (error: any) {
-      setResult({ success: false, message: 'Error: ' + (error.message || 'Unknown error') })
+      setResult({ kind: 'danger', text: error?.message || 'Failed to send test email.' })
     } finally {
       setSending(false)
     }
   }
 
   return (
-    <div>
-      <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: '600', color: '#2c3e50' }}>
-        Send Test Email
-      </h3>
-      <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>
-        Send a test email to yourself to verify your templates and settings.
-      </p>
-
-      <div style={{
-        backgroundColor: '#fff',
-        borderRadius: '8px',
-        padding: '24px',
-        border: '1px solid #e9ecef',
-        maxWidth: '600px',
-      }}>
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#2c3e50',
-          }}>
-            Template Type
-          </label>
-          <select
-            value={templateType}
-            onChange={(e) => setTemplateType(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px',
-            }}
-          >
-            <option value="welcome">Welcome Email</option>
-            <option value="verify">Email Verification</option>
-            <option value="reset">Password Reset</option>
-            <option value="invite">User Invitation</option>
-            <option value="mfa">MFA Setup</option>
-            <option value="alert">Security Alert</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#2c3e50',
-          }}>
-            Recipient Email
-          </label>
-          <input
-            type="email"
-            value={testEmail}
-            onChange={(e) => setTestEmail(e.target.value)}
-            placeholder="your.email@example.com"
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              fontSize: '14px',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-
-        {result && (
-          <div style={{
-            padding: '12px',
-            marginBottom: '20px',
-            borderRadius: '6px',
-            backgroundColor: result.success ? '#e8f5e9' : '#ffebee',
-            color: result.success ? '#2e7d32' : '#c62828',
-            fontSize: '14px',
-            border: `1px solid ${result.success ? '#c8e6c9' : '#ffcdd2'}`,
-          }}>
-            {result.success ? '✓' : '✗'} {result.message}
-          </div>
-        )}
-
-        <button
-          onClick={handleSendTest}
-          disabled={sending || !testEmail}
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            backgroundColor: sending || !testEmail ? '#e9ecef' : '#3498db',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: sending || !testEmail ? 'not-allowed' : 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (!sending && testEmail) {
-              const el = e.currentTarget as HTMLElement
-              el.style.backgroundColor = '#2980b9'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!sending && testEmail) {
-              const el = e.currentTarget as HTMLElement
-              el.style.backgroundColor = '#3498db'
-            }
-          }}
-        >
-          {sending ? '📧 Sending...' : '✉️ Send Test Email'}
-        </button>
-      </div>
-    </div>
+    <Card className="border-0 shadow-sm">
+      <CardBody className="p-4">
+        <Row className="g-4">
+          <Col lg={7}>
+            <h4 className="mb-3">Send test email</h4>
+            {result && <Alert variant={result.kind}>{result.text}</Alert>}
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-semibold">Recipient email</Form.Label>
+              <Form.Control type="email" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="recipient@example.com" />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-semibold">Template key</Form.Label>
+              <Form.Select value={templateKey} onChange={(e) => setTemplateKey(e.target.value)}>
+                <option value="welcome">welcome</option>
+                <option value="verify">verify</option>
+                <option value="reset">reset</option>
+                <option value="invite">invite</option>
+                <option value="mfa">mfa</option>
+                <option value="alert">alert</option>
+              </Form.Select>
+            </Form.Group>
+            <Button onClick={handleSend} disabled={sending}>
+              {sending ? 'Sending...' : 'Send test email'}
+            </Button>
+          </Col>
+          <Col lg={5}>
+            <Card className="border-0 bg-light-subtle h-100">
+              <CardBody>
+                <h5 className="mb-3">Delivery summary</h5>
+                <div className="small text-muted mb-2">Client: {clientId || 'Global default'}</div>
+                <div className="small text-muted mb-2">Locale: {locale === 'bn' ? 'Bangla' : 'English'}</div>
+                <div className="small text-muted mb-2">Sender name: {senderInfo.senderName || 'Unavailable'}</div>
+                <div className="small text-muted mb-2">Sender email: {senderInfo.senderEmail || 'Unavailable'}</div>
+                <div className="alert alert-soft-secondary mt-3 mb-0">
+                  No raw tokens or secrets are shown. Delivery uses the existing backend send-test route when available.
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+        </Row>
+      </CardBody>
+    </Card>
   )
 }

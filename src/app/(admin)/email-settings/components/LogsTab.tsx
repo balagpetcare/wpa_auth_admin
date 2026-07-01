@@ -1,180 +1,99 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { apiClient } from '@/lib/apiClient'
+import { Alert, Badge, Button, Card, CardBody, Col, Form, Row, Spinner } from 'react-bootstrap'
+import { emailApi, type EmailLog } from './emailSettingsApi'
 
 interface LogsTabProps {
   clientId: string | null
-  locale: string
-}
-
-type EmailLog = {
-  id: string
-  templateType: string
-  recipient: string
-  status: 'sent' | 'failed' | 'bounced'
-  timestamp: string
-  errorMessage?: string
+  locale: 'en' | 'bn'
 }
 
 export default function LogsTab({ clientId, locale }: LogsTabProps) {
   const [logs, setLogs] = useState<EmailLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [available, setAvailable] = useState(false)
+  const [filters, setFilters] = useState({ templateKey: '', status: '', date: '' })
+  const [retryMessage, setRetryMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchLogs = async () => {
+    const load = async () => {
       try {
-        const token = localStorage.getItem('accessToken')
-        if (!token) {
-          setLoading(false)
-          return
-        }
-
-        try {
-          const response = await apiClient(token).get<any>(
-            `/admin/email-logs?clientId=${clientId || 'global'}&locale=${locale}`
-          )
-          if (response?.logs) {
-            setLogs(response.logs)
-          }
-        } catch (apiError) {
-          setError(true)
-        }
+        const response = await emailApi.logs(clientId, locale, filters.templateKey || undefined, filters.status || undefined, filters.date || undefined)
+        setLogs(response.data?.logs || response.data?.items || [])
+        setAvailable(response.available)
       } finally {
         setLoading(false)
       }
     }
+    load()
+  }, [clientId, locale, filters])
 
-    fetchLogs()
-  }, [clientId, locale])
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'sent':
-        return { color: '#27ae60', icon: '✓', bgColor: '#e8f5e9' }
-      case 'failed':
-        return { color: '#e74c3c', icon: '✗', bgColor: '#ffebee' }
-      case 'bounced':
-        return { color: '#f39c12', icon: '⚠️', bgColor: '#fff3e0' }
-      default:
-        return { color: '#7f8c8d', icon: '?', bgColor: '#f8f9fa' }
-    }
+  const retryFailed = async (log: EmailLog) => {
+    setRetryMessage(null)
+    const response = await emailApi.retryLog({ logId: log.id, clientId: clientId || 'global', locale })
+    setRetryMessage(response.available ? 'Retry request submitted.' : 'Retry endpoint is unavailable.')
   }
 
   return (
-    <div>
-      <h3 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: '600', color: '#2c3e50' }}>
-        Email Logs
-      </h3>
-      <p style={{ color: '#7f8c8d', marginBottom: '20px' }}>
-        View the history of emails sent using these templates.
-      </p>
+    <Card className="border-0 shadow-sm">
+      <CardBody className="p-4">
+        <Row className="g-3 mb-4">
+          <Col md={3}><Form.Control placeholder="Template key" value={filters.templateKey} onChange={(e) => setFilters((current) => ({ ...current, templateKey: e.target.value }))} /></Col>
+          <Col md={3}>
+            <Form.Select value={filters.status} onChange={(e) => setFilters((current) => ({ ...current, status: e.target.value }))}>
+              <option value="">All statuses</option>
+              <option value="sent">Sent</option>
+              <option value="failed">Failed</option>
+              <option value="bounced">Bounced</option>
+            </Form.Select>
+          </Col>
+          <Col md={3}><Form.Control type="date" value={filters.date} onChange={(e) => setFilters((current) => ({ ...current, date: e.target.value }))} /></Col>
+          <Col md={3}><Button variant="light" className="w-100" onClick={() => setFilters({ templateKey: '', status: '', date: '' })}>Clear filters</Button></Col>
+        </Row>
 
-      {loading && (
-        <div style={{
-          padding: '40px 20px',
-          textAlign: 'center',
-          color: '#7f8c8d',
-        }}>
-          <div style={{
-            width: '30px',
-            height: '30px',
-            border: '3px solid #e9ecef',
-            borderTop: '3px solid #3498db',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto',
-          }} />
-        </div>
-      )}
-
-      {error && (
-        <div style={{
-          padding: '15px',
-          backgroundColor: '#fff3e0',
-          borderRadius: '6px',
-          color: '#e65100',
-          marginBottom: '20px',
-        }}>
-          Failed to load email logs. The endpoint may not be available yet.
-        </div>
-      )}
-
-      {!loading && !error && logs.length === 0 && (
-        <div style={{
-          padding: '40px 20px',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '8px',
-          border: '1px solid #e9ecef',
-          textAlign: 'center',
-          color: '#7f8c8d',
-        }}>
-          No email logs found. Emails sent will appear here.
-        </div>
-      )}
-
-      {!loading && !error && logs.length > 0 && (
-        <div style={{
-          overflowX: 'auto',
-          borderRadius: '8px',
-          border: '1px solid #e9ecef',
-        }}>
-          <table style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            fontSize: '14px',
-          }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '1px solid #e9ecef' }}>
-                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#2c3e50' }}>Status</th>
-                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#2c3e50' }}>Template</th>
-                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#2c3e50' }}>Recipient</th>
-                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', color: '#2c3e50' }}>Sent At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => {
-                const { color, icon, bgColor } = getStatusColor(log.status)
-                return (
-                  <tr key={log.id} style={{ borderBottom: '1px solid #e9ecef' }}>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        backgroundColor: bgColor,
-                        color: color,
-                        borderRadius: '4px',
-                        fontWeight: '500',
-                        fontSize: '12px',
-                      }}>
-                        {icon} {log.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', color: '#2c3e50' }}>{log.templateType}</td>
-                    <td style={{ padding: '12px', color: '#7f8c8d' }}>{log.recipient}</td>
-                    <td style={{ padding: '12px', color: '#7f8c8d' }}>
-                      {new Date(log.timestamp).toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+        {retryMessage && <Alert variant="info">{retryMessage}</Alert>}
+        {loading ? (
+          <div className="py-5 text-center text-muted"><Spinner animation="border" size="sm" className="me-2" />Loading logs...</div>
+        ) : !available ? (
+          <Alert variant="warning">Email logs endpoint is unavailable.</Alert>
+        ) : logs.length === 0 ? (
+          <div className="alert alert-soft-secondary mb-0">No email delivery logs were returned.</div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table table-centered table-hover mb-0">
+              <thead className="bg-light bg-opacity-50">
+                <tr>
+                  <th>Status</th>
+                  <th>Client</th>
+                  <th>Locale</th>
+                  <th>Template</th>
+                  <th>Recipient</th>
+                  <th>Date</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id}>
+                    <td><Badge bg={log.status === 'sent' ? 'success' : log.status === 'failed' ? 'danger' : 'warning'}>{log.status || 'unknown'}</Badge></td>
+                    <td>{log.clientName || 'Global default'}</td>
+                    <td>{log.locale || locale}</td>
+                    <td>{log.templateKey || 'Unavailable'}</td>
+                    <td>{log.recipient || 'Unavailable'}</td>
+                    <td>{log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unavailable'}</td>
+                    <td className="text-end">
+                      {log.status === 'failed' ? (
+                        <Button size="sm" variant="light" onClick={() => retryFailed(log)}>Retry</Button>
+                      ) : null}
                     </td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardBody>
+    </Card>
   )
 }
