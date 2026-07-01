@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get the access token from cookie or header for backend logout call
-    const accessToken = request.cookies.get('accessToken')?.value
+    // Get tokens - they could be in cookies or headers
+    const accessToken = request.headers.get('authorization')?.replace('Bearer ', '') ||
+                        request.cookies.get('accessToken')?.value
 
-    // Call backend logout if token exists
+    const refreshToken = request.cookies.get('refreshToken')?.value
+
+    // Call backend logout if access token exists
     if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
       try {
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5010/api/v1'
@@ -15,6 +18,9 @@ export async function GET(request: NextRequest) {
             'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({
+            refreshToken: refreshToken || undefined,
+          }),
         })
       } catch (error) {
         // Log but don't fail - frontend logout should still work
@@ -29,6 +35,7 @@ export async function GET(request: NextRequest) {
     response.cookies.delete('accessToken')
     response.cookies.delete('refreshToken')
     response.cookies.delete('adminId')
+    response.cookies.delete('adminData')
 
     return response
   } catch (error) {

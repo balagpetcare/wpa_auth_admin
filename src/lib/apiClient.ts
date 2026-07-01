@@ -28,6 +28,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const body = await res.json().catch(() => ({}))
 
   if (!res.ok) {
+    // Handle 401/403 - clear tokens and redirect to sign-in
+    if (res.status === 401 || res.status === 403) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('refreshToken')
+        localStorage.removeItem('adminData')
+        localStorage.removeItem('accessTokenExpiresAt')
+        // Redirect to sign-in
+        window.location.href = '/auth/sign-in'
+      }
+    }
     throw new ApiError(res.status, body?.code ?? 'UNKNOWN_ERROR', body?.message ?? 'An error occurred')
   }
 
@@ -35,9 +46,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export function apiClient(accessToken?: string | null) {
-  const headers: HeadersInit = {}
-  if (accessToken && accessToken !== 'null' && accessToken !== 'undefined') {
-    headers['Authorization'] = `Bearer ${accessToken}`
+  // Get token from parameter or localStorage
+  let token = accessToken
+  if (!token && typeof window !== 'undefined') {
+    token = localStorage.getItem('accessToken')
+  }
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+
+  if (token && token !== 'null' && token !== 'undefined') {
+    headers['Authorization'] = `Bearer ${token}`
   }
 
   return {
