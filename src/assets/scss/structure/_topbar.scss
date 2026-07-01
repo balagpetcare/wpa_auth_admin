@@ -1,0 +1,239 @@
+// 
+// topbar.scss
+// 
+
+.topbar {
+     top: 0;
+     z-index: 1005;
+     position: sticky;
+     transition: all 0.3s ease-in-out;
+     height: $topbar-height;
+     background-color: $topbar-bg;
+     padding-left: $main-nav-width;
+
+     .navbar-header {
+          display: flex;
+          margin: 0 auto;
+          align-items: center;
+          justify-content: space-between;
+     }
+
+     // Search
+     .app-search {
+
+          .form-control {
+               border: none;
+               padding-left: 40px;
+               padding-right: 15px;
+               background-color: $topbar-search-bg;
+               box-shadow: none;
+               height: 42px;
+          }
+
+          .search-widget-icon {
+               position: absolute;
+               z-index: 10;
+               font-size: 18px;
+               left: 11px;
+               top: 50%;
+               color: $gray-500;
+               transform: translateY(-50%);
+               cursor: pointer;
+          }
+
+          .search-widget-icon-close {
+               right: 7px;
+               left: auto !important;
+          }
+     }
+
+     .topbar-item {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: $topbar-height;
+
+          .button-toggle-menu {
+               border: none;
+               border-radius: 0;
+               color: $topbar-item-color;
+               background-color: transparent;
+
+
+               &.active,
+               &:active,
+               &:hover,
+               &:focus {
+                    color: $topbar-item-color;
+                    background-color: transparent;
+               }
+          }
+
+          .topbar-button {
+               border: none;
+               border-radius: 50%;
+               background: transparent;
+               transition: all 0.3s ease-in-out;
+               color: $topbar-item-color;
+               padding: $btn-padding-y $btn-padding-y;
+               position: relative;
+
+               &.show,
+               &.active,
+               &:active,
+               &:hover,
+               &:focus-visible {
+                    color: $primary;
+                    outline: 0;
+                    box-shadow: 0 0 0 0.2rem rgba(var(--#{$prefix}primary-rgb), 0.18);
+                }
+          }
+     }
+
+     .topbar-badge {
+          right: -7px;
+          top: 7px !important;
+     }
+
+     .notification-panel-root {
+          position: relative;
+     }
+
+     .notification-panel {
+          top: calc(100% + 12px);
+          right: 0;
+          position: absolute;
+          width: min(440px, calc(100vw - 24px));
+          background: var(--#{$prefix}body-bg);
+          border: 1px solid var(--#{$prefix}border-color);
+          border-radius: 1rem;
+          overflow: hidden;
+          z-index: 1095;
+     }
+
+     .notification-panel-header,
+     .notification-panel-footer {
+          padding: 1rem 1.25rem;
+          background: linear-gradient(180deg, rgba(var(--#{$prefix}light-rgb), 0.55), rgba(var(--#{$prefix}light-rgb), 0.2));
+     }
+
+     .notification-panel-body {
+          max-height: min(60vh, 520px);
+          overflow: auto;
+     }
+
+     .notification-panel-list {
+          padding: 0.5rem;
+     }
+
+     .notification-panel-item {
+          padding: 1rem;
+          background: transparent;
+          border-radius: 0.875rem;
+          transition: background-color 0.2s ease, transform 0.2s ease;
+
+          &.unread {
+               background: rgba(var(--#{$prefix}primary-rgb), 0.05);
+          }
+
+          &:hover,
+          &:focus-visible {
+               background: rgba(var(--#{$prefix}primary-rgb), 0.08);
+               transform: translateY(-1px);
+               outline: 0;
+          }
+     }
+
+     .notification-panel-icon,
+     .notification-feed-icon {
+          width: 46px;
+          height: 46px;
+          border-radius: 0.9rem;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+     }
+
+     .notification-message {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+     }
+
+     .notification-panel-action {
+          font-size: 0.875rem;
+     }
+
+     .notification-mobile-canvas {
+          max-width: 100%;
+     }
+}
+
+// fullscreen exit icon
+.fullscreen-enable {
+     .bx-fullscreen::before {
+          transition: all 0.3s ease-in-out;
+          content: "\eacb";
+     }
+}
+
+// Dark Mode Icon
+html[data-bs-theme="dark"] {
+     .topbar {
+          .notification-panel,
+          .notification-mobile-canvas {
+               background: var(--#{$prefix}secondary-bg);
+          }
+
+          .notification-panel-header,
+          .notification-panel-footer {
+               background: rgba(var(--#{$prefix}dark-rgb), 0.18);
+          }
+
+          #light-dark-mode {
+               i {
+                    &::before {
+                         transition: all 0.3s ease-in-out;
+                         content: "\eebe";
+                    }
+               }
+          }
+     }
+}
+
+
+html[data-menu-size="hidden"] {
+     .topbar {
+          padding: 0;
+     }
+}
+
+
+// @include media-breakpoint-down(md) {
+@media (max-width: 375px) {
+     .topbar {
+          padding: 0 0.5 * $spacer !important;
+     }
+}
+
+@media (max-width: 600px) {
+     .topbar {
+          .dropdown {
+               position: static;
+
+               .dropdown-menu {
+                    width: 100%;
+               }
+          }
+
+          .notification-panel {
+               position: fixed;
+               top: calc($topbar-height + 8px);
+               right: 12px;
+               left: 12px;
+               width: auto;
+          }
+     }
+}

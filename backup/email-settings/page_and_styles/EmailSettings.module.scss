@@ -1,0 +1,86 @@
+.container {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 30px;
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0f3a7d;
+    margin: 0 0 8px 0;
+  }
+
+  p {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+  }
+}
+
+.card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+  :global(.card-body) {
+    padding: 0;
+  }
+}
+
+.tabsWrapper {
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0 20px;
+  overflow-x: auto;
+}
+
+.tabs {
+  border-bottom: none;
+  gap: 0;
+
+  :global(.nav-link) {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #666;
+    padding: 16px 0;
+    margin: 0 16px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: #0f3a7d;
+      border-bottom-color: #f0f0f0;
+    }
+
+    &.active {
+      color: #0f3a7d;
+      border-bottom-color: #ff6c2f;
+      background: none;
+
+      .tabIcon {
+        transform: scale(1.1);
+      }
+    }
+  }
+}
+
+.tabLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabIcon {
+  font-size: 18px;
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.tabContent {
+  padding: 30px 20px;
+  min-height: 400px;
+}

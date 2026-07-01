@@ -1,0 +1,160 @@
+.container {
+  max-width: 100%;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 16px;
+
+  p {
+    color: #666;
+    font-size: 14px;
+  }
+}
+
+.formCard {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  :global(.card-header) {
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 16px;
+  }
+
+  :global(.card-body) {
+    padding: 20px;
+  }
+}
+
+.historyCard {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  height: 100%;
+
+  :global(.card-header) {
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 12px 16px;
+  }
+
+  :global(.card-body) {
+    padding: 0;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f3a7d;
+  margin: 0;
+}
+
+.jsonInput {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+
+  &:focus {
+    background-color: #fff;
+    border-color: #0f3a7d;
+    box-shadow: 0 0 0 0.2rem rgba(15, 58, 125, 0.25);
+  }
+
+  &:disabled {
+    background-color: #f5f5f5;
+    color: #999;
+  }
+}
+
+.historyBody {
+  padding: 0;
+}
+
+.emptyMessage {
+  padding: 40px 20px;
+  text-align: center;
+  color: #999;
+  margin: 0;
+  font-size: 14px;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+}
+
+.historyEntry {
+  border-bottom: 1px solid #e0e0e0;
+  padding: 16px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: #f9f9f9;
+  }
+}
+
+.entryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.template {
+  font-weight: 500;
+  color: #333;
+  font-size: 13px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badgeSuccess {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badgeFailure {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.email {
+  font-size: 12px;
+  color: #666;
+  margin: 4px 0;
+  word-break: break-all;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.message {
+  font-size: 12px;
+  color: #999;
+  margin: 4px 0;
+  font-style: italic;
+}
+
+.timestamp {
+  font-size: 11px;
+  color: #bbb;
+  margin: 0;
+}

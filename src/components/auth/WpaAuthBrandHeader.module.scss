@@ -1,0 +1,150 @@
+// WPA Central Auth Brand Header - Reusable component for public auth pages
+
+$navy-primary: #0f3a7d;
+$navy-dark: #082754;
+$orange-primary: #ff6c2f;
+$white: #ffffff;
+$text-primary: #323a46;
+$gray-text: #5d7186;
+
+// ============================================================================
+// BRAND HEADER
+// ============================================================================
+
+.brandHeader {
+  background: linear-gradient(135deg, $navy-primary 0%, $navy-dark 100%);
+  color: $white;
+  padding: 1.5rem 2rem;
+  border-bottom: 3px solid $orange-primary;
+
+  @media (max-width: 768px) {
+    padding: 1.25rem 1rem;
+    border-bottom: 2px solid $orange-primary;
+  }
+}
+
+.brandHeader.cardVariant {
+  border-radius: 1rem 1rem 0 0;
+}
+
+// ============================================================================
+// BRAND CONTAINER
+// ============================================================================
+
+.brandContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+
+  @media (max-width: 640px) {
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+// ============================================================================
+// LOGO SECTION
+// ============================================================================
+
+.logoSection {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+
+  @media (max-width: 640px) {
+    height: 40px;
+    order: 1;
+  }
+}
+
+.logo {
+  height: 40px;
+  width: auto;
+  display: block;
+  filter: brightness(1.2);
+
+  @media (max-width: 640px) {
+    height: 32px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    filter: brightness(0.95);
+  }
+}
+
+// ============================================================================
+// PRODUCT SECTION
+// ============================================================================
+
+.productSection {
+  flex-grow: 1;
+
+  @media (max-width: 640px) {
+    flex-grow: 0;
+    width: 100%;
+    order: 2;
+  }
+}
+
+.productName {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: $white;
+  letter-spacing: -0.5px;
+
+  @media (max-width: 768px) {
+    font-size: 1.375rem;
+  }
+
+  @media (max-width: 640px) {
+    font-size: 1.25rem;
+  }
+}
+
+.productSubtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.75rem;
+  color: rgba($white, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+
+  @media (max-width: 640px) {
+    font-size: 0.7rem;
+  }
+}
+
+// ============================================================================
+// DARK MODE SUPPORT
+// ============================================================================
+
+@media (prefers-color-scheme: dark) {
+  .brandHeader {
+    background: linear-gradient(135deg, #001a4d 0%, #0a1e3d 100%);
+  }
+
+  .productName {
+    color: #ffffff;
+  }
+
+  .productSubtitle {
+    color: rgba(#ffffff, 0.8);
+  }
+}
+
+// ============================================================================
+// REDUCED MOTION
+// ============================================================================
+
+@media (prefers-reduced-motion: reduce) {
+  .brandHeader {
+    background: $navy-primary;
+  }
+}
