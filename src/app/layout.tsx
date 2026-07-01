@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import './globals.css'
+import '@/assets/scss/app.scss'
 
 export const metadata: Metadata = {
   title: 'WPA Central Auth Admin',

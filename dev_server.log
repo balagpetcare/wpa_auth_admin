@@ -1,0 +1,16 @@
+
+> wpa-auth-admin@0.1.0 dev
+> next dev -p 5012 -p 3000
+
+   ▲ Next.js 16.0.8 (Turbopack)
+   - Local:         http://localhost:3000
+   - Network:       http://192.168.10.108:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+ ✓ Ready in 664ms
+ GET /auth/sign-in 200 in 1344ms (compile: 1223ms, render: 120ms)
+ GET /dashboard 200 in 485ms (compile: 428ms, render: 57ms)
+ GET /email-settings 200 in 289ms (compile: 254ms, render: 35ms)
+ GET / 200 in 256ms (compile: 225ms, render: 31ms)
