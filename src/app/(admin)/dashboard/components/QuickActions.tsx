@@ -1,122 +1,42 @@
 'use client'
 
 import Link from 'next/link'
+import { Card, CardBody, Col, Row } from 'react-bootstrap'
 
-type QuickAction = {
-  title: string
-  description: string
-  icon: string
-  href: string
-  color: string
-}
-
-const QUICK_ACTIONS: QuickAction[] = [
-  {
-    title: 'Create User',
-    description: 'Add a new admin user to the system',
-    icon: '➕',
-    href: '/admin-users',
-    color: '#3498db',
-  },
-  {
-    title: 'Email Settings',
-    description: 'Configure email branding and templates',
-    icon: '📧',
-    href: '/email-settings',
-    color: '#9b59b6',
-  },
-  {
-    title: 'View Sessions',
-    description: 'Monitor active user sessions',
-    icon: '💾',
-    href: '/sessions',
-    color: '#27ae60',
-  },
-  {
-    title: 'Security Logs',
-    description: 'Check recent security events',
-    icon: '🛡️',
-    href: '/security-logs',
-    color: '#e74c3c',
-  },
+const actions = [
+  { title: 'Manage Admin Users', description: 'Create and review admin accounts', href: '/admin-users', icon: '👥' },
+  { title: 'Manage Roles', description: 'Maintain role permissions and access', href: '/roles', icon: '🔐' },
+  { title: 'OAuth Clients', description: 'Inspect connected OAuth clients', href: '/oauth-clients', icon: '🔌' },
+  { title: 'Email Settings', description: 'Open branding and email delivery settings', href: '/email-settings', icon: '✉️' },
 ]
 
 export default function QuickActions() {
   return (
-    <div style={{ marginBottom: '40px' }}>
-      <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600', color: '#2c3e50' }}>
-        Quick Actions
-      </h3>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-        gap: '16px',
-      }}>
-        {QUICK_ACTIONS.map((action, index) => (
-          <Link
-            key={index}
-            href={action.href}
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: '8px',
-              padding: '20px',
-              textDecoration: 'none',
-              border: '1px solid #e9ecef',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLElement
-              el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
-              el.style.transform = 'translateY(-4px)'
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLElement
-              el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'
-              el.style.transform = 'translateY(0)'
-            }}
-          >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-            }}>
-              <div style={{
-                width: '44px',
-                height: '44px',
-                backgroundColor: action.color + '20',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '22px',
-              }}>
-                {action.icon}
-              </div>
-              <h4 style={{
-                margin: 0,
-                fontSize: '16px',
-                fontWeight: '600',
-                color: '#2c3e50',
-              }}>
-                {action.title}
-              </h4>
-            </div>
-            <p style={{
-              margin: 0,
-              fontSize: '13px',
-              color: '#7f8c8d',
-              lineHeight: '1.4',
-            }}>
-              {action.description}
-            </p>
-          </Link>
-        ))}
-      </div>
-    </div>
+    <Card className="border-0 shadow-sm mb-4">
+      <CardBody className="p-4">
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <div>
+            <h4 className="mb-1 text-dark">Quick actions</h4>
+            <p className="mb-0 text-muted">Navigate to the most common admin workflows.</p>
+          </div>
+          <span className="fs-3 text-primary">🧩</span>
+        </div>
+        <Row className="g-3">
+          {actions.map((action) => (
+            <Col key={action.title} xs={12} md={6} xl={3}>
+              <Link href={action.href} className="card border border-dashed border-secondary-subtle h-100 text-decoration-none">
+                <CardBody className="p-4">
+                  <div className="avatar-sm bg-primary-subtle text-primary rounded-3 flex-centered mb-3">
+                    <span className="fs-5">{action.icon}</span>
+                  </div>
+                  <h5 className="text-dark mb-2">{action.title}</h5>
+                  <p className="text-muted mb-0">{action.description}</p>
+                </CardBody>
+              </Link>
+            </Col>
+          ))}
+        </Row>
+      </CardBody>
+    </Card>
   )
 }

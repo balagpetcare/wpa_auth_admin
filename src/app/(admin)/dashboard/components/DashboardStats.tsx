@@ -1,172 +1,197 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { apiClient } from '@/lib/apiClient'
+import { Badge, Card, CardBody, Col, Row, Spinner } from 'react-bootstrap'
 
-type StatCard = {
-  title: string
-  value: number | string
+type StatItem = {
+  label: string
+  value: string
+  helper: string
   icon: string
-  color: string
-  bgColor: string
-  trend?: string
-  trendUp?: boolean
+}
+
+type HealthItem = {
+  label: string
+  value: string
+  variant: 'success' | 'warning' | 'danger' | 'secondary'
+  endpoint?: string
+}
+
+type ApiProbe = {
+  label: string
+  endpoint: string
+  fallback?: string
+}
+
+async function tryEndpoints<T>(token: string | null, probes: ApiProbe[]) {
+  const client = apiClient(token)
+  for (const probe of probes) {
+    try {
+      const data = await client.get<T>(probe.endpoint)
+      return { data, endpoint: probe.endpoint, fallback: false }
+    } catch {
+      continue
+    }
+  }
+  return { data: null as T | null, endpoint: undefined, fallback: true }
+}
+
+function LoadingCard() {
+  return (
+    <Card className="border-0 shadow-sm h-100">
+      <CardBody className="p-4">
+        <div className="d-flex align-items-center gap-2 text-muted">
+          <Spinner animation="border" size="sm" />
+          Loading dashboard data...
+        </div>
+      </CardBody>
+    </Card>
+  )
 }
 
 export default function DashboardStats() {
-  const [stats, setStats] = useState<StatCard[]>([
-    {
-      title: 'Total Users',
-      value: '-',
-      icon: '👥',
-      color: '#3498db',
-      bgColor: '#e3f2fd',
-    },
-    {
-      title: 'Active Sessions',
-      value: '-',
-      icon: '💾',
-      color: '#27ae60',
-      bgColor: '#e8f5e9',
-    },
-    {
-      title: 'Security Events',
-      value: '-',
-      icon: '🛡️',
-      color: '#e74c3c',
-      bgColor: '#ffebee',
-    },
-    {
-      title: 'API Requests (24h)',
-      value: '-',
-      icon: '📊',
-      color: '#f39c12',
-      bgColor: '#fff3e0',
-    },
-  ])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [stats, setStats] = useState<StatItem[]>([])
+  const [health, setHealth] = useState<HealthItem[]>([])
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const token = localStorage.getItem('accessToken')
-        if (!token) {
-          setLoading(false)
-          return
-        }
+    const load = async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
+      const [statsProbe, healthProbe] = await Promise.all([
+        tryEndpoints<any>(token, [{ label: 'dashboard stats', endpoint: '/admin/dashboard/stats' }]),
+        tryEndpoints<any>(token, [
+          { label: 'system health', endpoint: '/admin/system/health' },
+          { label: 'health', endpoint: '/health' },
+          { label: 'admin health', endpoint: '/admin/health' },
+        ]),
+      ])
 
-        // Try to fetch real stats from the backend
-        try {
-          const response = await apiClient(token).get<any>('/admin/dashboard/stats')
-          if (response) {
-            setStats(prev => [
-              { ...prev[0], value: response.totalUsers || '-' },
-              { ...prev[1], value: response.activeSessions || '-' },
-              { ...prev[2], value: response.securityEvents || '-' },
-              { ...prev[3], value: response.apiRequests || '-' },
-            ])
-          }
-        } catch (apiError) {
-          // API endpoint doesn't exist yet, show placeholder values
-          setStats(prev => [
-            { ...prev[0], value: '0' },
-            { ...prev[1], value: '0' },
-            { ...prev[2], value: '0' },
-            { ...prev[3], value: '0' },
-          ])
-        }
-      } finally {
-        setLoading(false)
-      }
+      const statPayload = statsProbe.data ?? {}
+      setStats([
+        { label: 'Total Admins', value: String(statPayload.totalAdmins ?? statPayload.totalUsers ?? 'Unavailable'), helper: statsProbe.fallback ? 'No stats endpoint available' : 'From API', icon: '👥' },
+        { label: 'Active Sessions', value: String(statPayload.activeSessions ?? 'Unavailable'), helper: statsProbe.fallback ? 'No stats endpoint available' : 'From API', icon: '💻' },
+        { label: 'OAuth Clients', value: String(statPayload.oauthClients ?? 'Unavailable'), helper: statsProbe.fallback ? 'No stats endpoint available' : 'From API', icon: '🔌' },
+        { label: 'Security Events', value: String(statPayload.securityEvents ?? 'Unavailable'), helper: statsProbe.fallback ? 'No stats endpoint available' : 'From API', icon: '🛡️' },
+      ])
+
+      const healthPayload = healthProbe.data as any
+      const healthItems: HealthItem[] = [
+        {
+          label: 'API status',
+          value: healthPayload?.api?.status || healthPayload?.status || (healthProbe.fallback ? 'Unavailable' : 'Healthy'),
+          variant: healthProbe.fallback ? 'secondary' : 'success',
+          endpoint: healthProbe.endpoint,
+        },
+        {
+          label: 'Redis status',
+          value: healthPayload?.redis?.status || 'Unavailable',
+          variant: healthPayload?.redis ? 'success' : 'secondary',
+          endpoint: healthProbe.endpoint,
+        },
+        {
+          label: 'Database status',
+          value: healthPayload?.database?.status || 'Unavailable',
+          variant: healthPayload?.database ? 'success' : 'secondary',
+          endpoint: healthProbe.endpoint,
+        },
+        {
+          label: 'Email queue status',
+          value: healthPayload?.emailQueue?.status || healthPayload?.queue?.status || 'Unavailable',
+          variant: healthPayload?.emailQueue || healthPayload?.queue ? 'success' : 'secondary',
+          endpoint: healthProbe.endpoint,
+        },
+      ]
+      setHealth(healthItems)
+      setLoading(false)
     }
 
-    fetchStats()
+    load().catch(() => {
+      setStats([])
+      setHealth([])
+      setLoading(false)
+    })
   }, [])
 
-  if (loading) {
-    return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        {Array(4).fill(null).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              height: '120px',
-              backgroundColor: '#e9ecef',
-              borderRadius: '8px',
-              animation: 'pulse 2s infinite',
-            }}
-          />
-        ))}
-        <style>{`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}</style>
-      </div>
-    )
-  }
+  const statCards = useMemo(
+    () =>
+      stats.map((item) => (
+        <Col key={item.label} xs={12} md={6} xl={3}>
+          <Card className="border-0 shadow-sm h-100">
+            <CardBody className="p-4">
+              <div className="d-flex align-items-start justify-content-between">
+                <div>
+                  <p className="text-uppercase text-muted fw-medium fs-12 mb-2">{item.label}</p>
+                  <h2 className="mb-1 fw-semibold text-dark">{item.value}</h2>
+                  <div className="text-muted fs-13">{item.helper}</div>
+                </div>
+                <div className="avatar-md bg-primary-subtle text-primary rounded-3 flex-centered">
+                  <span className="fs-3">{item.icon}</span>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </Col>
+      )),
+    [stats],
+  )
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-      gap: '20px',
-      marginBottom: '40px',
-    }}>
-      {stats.map((stat, index) => (
-        <div
-          key={index}
-          style={{
-            backgroundColor: '#fff',
-            borderRadius: '8px',
-            padding: '20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            border: '1px solid #e9ecef',
-            transition: 'all 0.2s ease',
-            cursor: 'default',
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLElement
-            el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
-            el.style.transform = 'translateY(-2px)'
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLElement
-            el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)'
-            el.style.transform = 'translateY(0)'
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <>
+      <Row className="g-4 mb-4">
+        {loading && (
+          <>
+            <Col xs={12} md={6} xl={3}><LoadingCard /></Col>
+            <Col xs={12} md={6} xl={3}><LoadingCard /></Col>
+            <Col xs={12} md={6} xl={3}><LoadingCard /></Col>
+            <Col xs={12} md={6} xl={3}><LoadingCard /></Col>
+          </>
+        )}
+        {!loading && statCards}
+      </Row>
+
+      <Row className="g-4 mb-4">
+        {health.map((item) => (
+          <Col key={item.label} xs={12} md={6} xl={3}>
+            <Card className="border-0 shadow-sm h-100">
+              <CardBody className="p-4">
+                <div className="d-flex align-items-center justify-content-between mb-2">
+                  <span className="text-muted fw-medium">{item.label}</span>
+                  <Badge bg={item.variant} className="text-uppercase">
+                    {item.value}
+                  </Badge>
+                </div>
+                <div className="small text-muted mb-3">{item.endpoint ? `Source: ${item.endpoint}` : 'No endpoint available'}</div>
+                <div className="progress progress-sm">
+                  <div className={`progress-bar bg-${item.variant}`} style={{ width: item.variant === 'success' ? '100%' : '30%' }} />
+                </div>
+              </CardBody>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+
+      <Card className="border-0 shadow-sm mb-4">
+        <CardBody className="p-4">
+          <div className="d-flex align-items-center justify-content-between mb-3">
             <div>
-              <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#7f8c8d', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                {stat.title}
-              </p>
-              <h3 style={{ margin: 0, fontSize: '32px', fontWeight: '700', color: stat.color }}>
-                {stat.value}
-              </h3>
-              {stat.trend && (
-                <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: stat.trendUp ? '#27ae60' : '#e74c3c' }}>
-                  {stat.trendUp ? '↑' : '↓'} {stat.trend}
-                </p>
-              )}
+              <h4 className="mb-1 text-dark">System health</h4>
+              <p className="mb-0 text-muted">Status checks are based on available endpoints only.</p>
             </div>
-            <div style={{
-              width: '50px',
-              height: '50px',
-              backgroundColor: stat.bgColor,
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '28px',
-            }}>
-              {stat.icon}
-            </div>
+            <Link href="/email-settings" className="btn btn-soft-primary btn-sm">
+              Open email settings
+            </Link>
           </div>
-        </div>
-      ))}
-    </div>
+          <div className="d-flex flex-wrap gap-2">
+            {health.map((item) => (
+              <Badge key={item.label} bg={item.variant} className="p-2">
+                {item.label}: {item.value}
+              </Badge>
+            ))}
+          </div>
+        </CardBody>
+      </Card>
+    </>
   )
 }
