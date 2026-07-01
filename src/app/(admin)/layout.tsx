@@ -1,32 +1,53 @@
-import FallbackLoading from '@/components/FallbackLoading'
-import Footer from '@/components/layout/Footer'
-import AuthProtectionWrapper from '@/components/wrappers/AuthProtectionWrapper'
-import { ChildrenType } from '@/types/component-props'
-import dynamic from 'next/dynamic'
-import React, { Suspense } from 'react'
+import { ReactNode } from 'react'
 
-const VerticalNavigationBar = dynamic(() => import('@/components/layout/VerticalNavigationBar/page'))
-const TopNavigationBar = dynamic(() => import('@/components/layout/TopNavigationBar/page'))
+export default function AdminLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Sidebar */})
+      <aside style={{
+        width: '250px',
+        backgroundColor: '#2c3e50',
+        color: '#fff',
+        padding: '20px',
+        overflowY: 'auto',
+      }}>
+        <h1 style={{ fontSize: '20px', marginBottom: '30px' }}>
+          WPA Central Auth
+        </h1>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <a href="/dashboard" style={{
+            color: '#fff',
+            padding: '10px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            textDecoration: 'none',
+          }}>
+            Dashboard
+          </a>
+          <a href="/email-settings" style={{
+            color: '#fff',
+            padding: '10px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            textDecoration: 'none',
+          }}>
+            Email Settings
+          </a>
+        </nav>
+      </aside>
 
-const AdminLayout = ({ children }: ChildrenType) => {
-  return ()
-    <AuthProtectionWrapper>
-      <div className="wrapper">
-        <Suspense>
-          <TopNavigationBar />
-        </Suspense>
-
-        <Suspense fallback={<FallbackLoading />}>
-          <VerticalNavigationBar />
-        </Suspense>
-
-        <div className="page-content">
-          <div className="container-fluid">{children}</div>
-          <Footer />
-        </div>
-      </div>
-    </AuthProtectionWrapper>
-  
+      {/* Main Content */})
+      <main style={{
+        flex: 1,
+        padding: '20px',
+        overflowY: 'auto',
+      }}>
+        {children})
+      </main>
+    </div>
+  )
 }
-
-export default AdminLayout

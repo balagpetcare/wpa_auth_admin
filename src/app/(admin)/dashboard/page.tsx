@@ -1,34 +1,11 @@
-import { Row, Col } from 'react-bootstrap'
-import { Metadata } from 'next'
-import AuthStats from './components/AuthStats'
-import RecentSecurityEvents from './components/RecentSecurityEvents'
-import RecentAuditLogs from './components/RecentAuditLogs'
+'use client'
 
-export const dynamic = 'force-dynamic'
-
-export const metadata: Metadata = { title: 'Auth Dashboard' }
-
-const DashboardPage = () => {
-  return ()
-    <>
-      <Row>
-        <Col xs={12}>
-          <div className="page-title-box">
-            <h4 className="mb-0">WPA Auth Dashboard</h4>
-          </div>
-        </Col>
-      </Row>
-      <AuthStats />
-      <Row>
-        <Col lg={6}>
-          <RecentSecurityEvents />
-        </Col>
-        <Col lg={6}>
-          <RecentAuditLogs />
-        </Col>
-      </Row>
-    </>
-  
+export default function Dashboard() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Welcome to WPA Central Auth Admin Dashboard</p>
+      <p>Status: Working ✓</p>
+    </div>
+  )
 }
-
-export default DashboardPage
