@@ -1,0 +1,143 @@
+//
+// _authentication.scss
+//
+
+// Phase 2 fix (docs/phase-2-core-identity-admin-modules.md): matches the
+// icon-badge + title + subtitle layout used by the sidebar logo
+// (_vertical.scss .logo-box), scoped separately here since the auth pages
+// don't use .main-nav.
+.auth-logo {
+     .logo-dark,
+     .logo-light {
+          align-items: center;
+          gap: 0.6rem;
+          text-decoration: none;
+     }
+
+     .logo-icon,
+     .auth-logo-icon {
+          flex: 0 0 auto;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          background: rgba(var(--#{$prefix}primary-rgb), 0.15);
+     }
+
+     .auth-logo-text {
+          display: flex;
+          flex-direction: column;
+          line-height: 1.25;
+     }
+
+     .auth-logo-title {
+          font-size: 19px;
+          font-weight: 700;
+     }
+
+     .auth-logo-subtitle {
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+     }
+
+     // The auth page background is light by default, so the dark-text
+     // variant (.logo-light) must show by default — same reasoning as the
+     // sidebar logo fix in _vertical.scss.
+     .logo-dark {
+          display: none;
+     }
+
+     .logo-light {
+          display: flex;
+     }
+}
+
+html[data-bs-theme="dark"] {
+     .auth-logo {
+          .logo-dark {
+               display: flex;
+          }
+
+          .logo-light {
+               display: none;
+          }
+     }
+}
+
+.account-pages {
+     .auth-card {
+          position: relative;
+          border: 0;
+          box-shadow: none;
+
+          &::after {
+               content: "";
+               position: absolute;
+               top: -40px;
+               left: 0;
+               right: 0;
+               background: $card-bg;
+               opacity: 0.25;
+               height: 20px;
+               width: 80%;
+               margin: 0 auto;
+               border-top-left-radius: $border-radius-sm;
+               border-top-right-radius: $border-radius-sm;
+               z-index: -1;
+          }
+
+          &::before {
+               content: "";
+               position: absolute;
+               top: -20px;
+               left: 0;
+               right: 0;
+               background: $card-bg;
+               opacity: 0.6;
+               height: 20px;
+               width: 90%;
+               margin: 0 auto;
+               border-top-left-radius: $border-radius-sm;
+               border-top-right-radius: $border-radius-sm;
+               z-index: -1;
+          }
+     }
+}
+
+
+.auth-page-sidebar {
+     padding: 4rem;
+     background-color: $card-bg;
+     border-radius: $border-radius-sm;
+     height: 100%;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+}
+
+p.no-span {
+     display: table;
+     white-space: nowrap;
+     padding: 10px 0;
+
+     &::before,
+     &::after {
+          border-top: 1px solid #{$card-border-color};
+          content: "";
+          display: table-cell;
+          position: relative;
+          top: 0.7em;
+          width: 50%;
+     }
+
+     &::before {
+          right: 1.5%;
+     }
+
+     &::after {
+          left: 1.5%;
+     }
+}
