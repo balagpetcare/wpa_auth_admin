@@ -4,6 +4,36 @@ export interface HealthStatus {
   uptime: number
 }
 
+export interface ReadinessStatus {
+  status: string
+  timestamp: string
+}
+
+export interface OperationalSnapshot {
+  health: {
+    database: string
+    redis: string
+    queue?: string
+  }
+  queue: {
+    depth: number
+  }
+  workers: Array<{
+    name: string
+    ttl: number
+    online: boolean
+  }>
+  metrics: {
+    counters: Record<string, number>
+    latency: Record<string, number>
+    lastHealth: {
+      redis: string
+      postgres: string
+      updatedAt: string | null
+    }
+  }
+}
+
 export interface SystemSettings {
   platformName: string
   publicAuthDomain: string

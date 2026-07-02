@@ -71,9 +71,10 @@ export default function DashboardPage() {
 
       // 2. Fetch recent audit logs (limit to 5)
       try {
-        const auditResponse = await apiClient.get<{ success: boolean; logs: AuditLogItem[] }>('/admin/audit-logs?limit=5')
-        if (auditResponse.success && auditResponse.logs) {
-          setAuditLogs(auditResponse.logs)
+        const auditResponse = await apiClient.get<{ success: boolean; data?: { items?: AuditLogItem[] }; logs?: AuditLogItem[] }>('/admin/audit-logs?limit=5')
+        const auditItems = auditResponse.data?.items ?? auditResponse.logs ?? []
+        if (auditItems) {
+          setAuditLogs(auditItems)
         }
       } catch (e) {
         console.warn('Audit logs API error:', e)
@@ -91,9 +92,10 @@ export default function DashboardPage() {
 
       // 4. Fetch recent security events
       try {
-        const securityResponse = await apiClient.get<{ success: boolean; events: SecurityEventItem[] }>('/admin/security-events?limit=5')
-        if (securityResponse.success && securityResponse.events) {
-          setSecurityEvents(securityResponse.events)
+        const securityResponse = await apiClient.get<{ success: boolean; data?: { items?: SecurityEventItem[] }; events?: SecurityEventItem[] }>('/admin/security-events?limit=5')
+        const securityItems = securityResponse.data?.items ?? securityResponse.events ?? []
+        if (securityItems) {
+          setSecurityEvents(securityItems)
         }
       } catch (e) {
         console.warn('Security events API error:', e)

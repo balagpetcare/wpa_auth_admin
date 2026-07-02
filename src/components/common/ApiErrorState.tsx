@@ -7,10 +7,11 @@ type Props = {
   title?: string
   message: string
   status?: number
+  requestId?: string
   onRetry?: () => void
 }
 
-export default function ApiErrorState({ title = 'Unable to load data', message, status, onRetry }: Props) {
+export default function ApiErrorState({ title = 'Unable to load data', message, status, requestId, onRetry }: Props) {
   return (
     <Alert variant="danger" className="shadow-sm">
       <div className="d-flex flex-column gap-2">
@@ -18,6 +19,7 @@ export default function ApiErrorState({ title = 'Unable to load data', message, 
           <strong className="d-block mb-1">{title}</strong>
           <span className="fs-13">{message}</span>
           {status ? <div className="fs-12 mt-1 text-muted">Status code: {status}</div> : null}
+          {requestId ? <div className="fs-12 text-muted">Request ID: {requestId}</div> : null}
         </div>
         {onRetry ? (
           <div>

@@ -32,6 +32,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter()
   const pathname = usePathname()
 
+  const sendPresenceHeartbeat = async () => {
+    if (!getAccessToken() || !admin || pathname?.startsWith('/auth/')) return
+    try {
+      await apiClient.post('/auth/presence/heartbeat', {})
+    } catch {
+      // Presence is best-effort only. Never log out the user if heartbeat fails.
+    }
+  }
+
   // Phase 1 audit fix (docs/central-auth-api-admin-scalability-audit.md):
   // token refresh-and-retry is now handled centrally inside apiClient's
   // request() for every endpoint, not just this one. This function no longer
@@ -141,6 +150,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       window.removeEventListener('wpa_auth_unauthorized', handleUnauthorized)
     }
   }, [])
+
+  useEffect(() => {
+    if (!admin || loading) return
+
+    let interval: ReturnType<typeof setInterval> | null = null
+    let canceled = false
+
+    const heartbeat = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      if (canceled) return
+      await sendPresenceHeartbeat()
+    }
+
+    void heartbeat()
+    interval = setInterval(() => {
+      void heartbeat()
+    }, 60_000)
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void heartbeat()
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      canceled = true
+      if (interval) clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [admin, loading, pathname])
 
   useEffect(() => {
     if (!loading) {
