@@ -12,9 +12,13 @@ import {
   Alert
 } from 'react-bootstrap'
 import { toast } from 'react-toastify'
+import Link from 'next/link'
 import { sessionsApi } from '@/features/sessions/api'
+import { accountApi } from '@/features/account/api'
+import { AccountProfile } from '@/features/account/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { StatusBadge, ErrorState } from '@/components/dashboard/DashboardComponents'
+import ChangePasswordCard from '@/features/account/components/ChangePasswordCard'
 
 interface SecuritySettingsData {
   platformName?: string
@@ -37,6 +41,7 @@ interface SecuritySettingsData {
 
 export default function SecuritySettingsPage() {
   const [settings, setSettings] = useState<SecuritySettingsData | null>(null)
+  const [account, setAccount] = useState<AccountProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -58,6 +63,10 @@ export default function SecuritySettingsPage() {
 
   useEffect(() => {
     loadSettings()
+    accountApi
+      .getMyAccount()
+      .then((res) => setAccount(res.account))
+      .catch(() => setAccount(null))
   }, [])
 
   const isDev = settings?.environment?.toLowerCase() === 'development'
@@ -92,6 +101,31 @@ export default function SecuritySettingsPage() {
             </p>
           </div>
         </Alert>
+      )}
+
+      {account && (
+        <Row>
+          <Col lg={6} className="mb-4">
+            <ChangePasswordCard lastPasswordChangedAt={account.lastPasswordChangedAt} />
+          </Col>
+          <Col lg={6} className="mb-4">
+            <Card className="shadow-sm border-0 h-100" style={{ borderRadius: '10px' }}>
+              <Card.Header className="bg-transparent border-0 pt-4 px-4 pb-0">
+                <div className="d-flex align-items-center gap-2 mb-1">
+                  <IconifyIcon icon="solar:devices-bold-duotone" className="text-primary fs-20" />
+                  <h5 className="fw-bold text-dark mb-0">Session Management</h5>
+                </div>
+                <span className="text-muted fs-12">Review and revoke your active login sessions.</span>
+              </Card.Header>
+              <Card.Body className="px-4 pb-4 mt-3">
+                <Link href="/sessions" className="btn btn-outline-primary btn-sm">
+                  <IconifyIcon icon="solar:alt-arrow-right-bold" className="me-1 align-middle" />
+                  View Active Sessions
+                </Link>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
       )}
 
       {loading ? (

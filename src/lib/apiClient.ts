@@ -94,9 +94,10 @@ async function request<T>(
   body?: any,
   options?: RequestOptions,
   isRetry = false,
+  rawBody?: FormData,
 ): Promise<T> {
   const headers: Record<string, string> = {
-    ...(method === 'POST' || method === 'PATCH' ? { 'Content-Type': 'application/json' } : {}),
+    ...(!rawBody && (method === 'POST' || method === 'PATCH') ? { 'Content-Type': 'application/json' } : {}),
     ...getAuthHeaders(),
     ...(options?.headers as Record<string, string>),
   }
@@ -105,13 +106,13 @@ async function request<T>(
     ...options,
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: rawBody ?? (body !== undefined ? JSON.stringify(body) : undefined),
   })
 
   if (response.status === 401 && !isRetry) {
     const refreshed = await refreshAccessToken()
     if (refreshed) {
-      return request<T>(method, path, body, options, true)
+      return request<T>(method, path, body, options, true, rawBody)
     }
     clearAuthTokens()
     dispatchUnauthorized()
@@ -146,6 +147,10 @@ export const apiClient = {
 
   async patch<T>(path: string, body?: any, options?: RequestInit): Promise<T> {
     return request<T>('PATCH', path, body, options)
+  },
+
+  async postForm<T>(path: string, formData: FormData, options?: RequestInit): Promise<T> {
+    return request<T>('POST', path, undefined, options, false, formData)
   },
 
   async delete<T>(path: string, options?: RequestInit): Promise<T> {
