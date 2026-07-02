@@ -23,11 +23,14 @@ import { StatusBadge, EmptyState, ErrorState } from '@/components/dashboard/Dash
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<ActiveSession[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasNextPage, setHasNextPage] = useState(false)
 
   // Modals & Action States
   const [actionLoading, setActionLoading] = useState(false)
@@ -39,22 +42,43 @@ export default function SessionsPage() {
     message: string
   } | null>(null)
 
-  const loadSessions = async () => {
-    setLoading(true)
-    setError(null)
+  const extractPaged = (response: any) => {
+    const data = response?.data ?? response
+    return {
+      items: data?.items ?? response?.sessions ?? response?.items ?? [],
+      nextCursor: data?.nextCursor ?? response?.nextCursor ?? null,
+      hasNextPage: Boolean(data?.hasNextPage ?? response?.hasNextPage),
+    }
+  }
+
+  const loadSessions = async (append = false) => {
+    if (append) setLoadingMore(true)
+    else {
+      setLoading(true)
+      setError(null)
+      setSessions([])
+      setNextCursor(null)
+      setHasNextPage(false)
+    }
     try {
       const response = await sessionsApi.listSessions({
         search: searchTerm || undefined,
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        limit: 25,
+        cursor: append ? nextCursor ?? undefined : undefined,
       })
-      if (response.success && response.sessions) {
-        setSessions(response.sessions)
+      if (response.success) {
+        const { items, nextCursor: cursor, hasNextPage: next } = extractPaged(response)
+        setSessions((prev) => (append ? [...prev, ...items] : items))
+        setNextCursor(cursor)
+        setHasNextPage(next)
       }
     } catch (err: any) {
       console.error('Failed to load sessions:', err)
       setError(err?.message || 'Access Denied: Missing permissions to query system sessions.')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
@@ -109,13 +133,13 @@ export default function SessionsPage() {
           <h4 className="fw-bold text-dark mb-1">Active Authentication Sessions</h4>
           <p className="text-muted mb-0 fs-13">Inspect active sessions across the gateway, trace IP origins, and force-revoke tokens.</p>
         </div>
-        <Button variant="primary" size="sm" onClick={loadSessions} disabled={loading} className="d-flex align-items-center gap-1 px-3 py-2 shadow-sm">
+        <Button variant="primary" size="sm" onClick={() => loadSessions()} disabled={loading} className="d-flex align-items-center gap-1 px-3 py-2 shadow-sm">
           <IconifyIcon icon="solar:restart-bold-duotone" className={loading ? 'spin fs-16' : 'fs-16'} />
           Refresh Directory
         </Button>
       </div>
 
-      {error && <ErrorState message={error} onRetry={loadSessions} />}
+      {error && <ErrorState message={error} onRetry={() => loadSessions()} />}
 
       <Card className="shadow-sm border-0" style={{ borderRadius: '10px' }}>
         <Card.Body className="p-0">
@@ -228,6 +252,14 @@ export default function SessionsPage() {
                   ))}
                 </tbody>
               </Table>
+              {hasNextPage && (
+                <div className="text-center py-3 border-top">
+                  <Button variant="outline-primary" size="sm" disabled={loadingMore} onClick={() => loadSessions(true)}>
+                    {loadingMore ? <Spinner animation="border" size="sm" className="me-1" /> : null}
+                    Load More
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </Card.Body>

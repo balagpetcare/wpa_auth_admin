@@ -16,15 +16,33 @@ import { ApiError } from '@/lib/apiClient'
 export default function DeliveryLogsPage() {
   const [logs, setLogs] = useState<DeliveryLog[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [pageError, setPageError] = useState<{ message: string; status?: number } | null>(null)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasNextPage, setHasNextPage] = useState(false)
 
   const [channel, setChannel] = useState('')
   const [status, setStatus] = useState('')
   const [recipient, setRecipient] = useState('')
   const [countryCode, setCountryCode] = useState('')
 
-  const load = async () => {
-    setLoading(true)
+  const extractPaged = (response: any) => {
+    const data = response?.data ?? response
+    return {
+      items: data?.items ?? [],
+      nextCursor: data?.nextCursor ?? null,
+      hasNextPage: Boolean(data?.hasNextPage),
+    }
+  }
+
+  const load = async (append = false) => {
+    if (append) setLoadingMore(true)
+    else {
+      setLoading(true)
+      setLogs([])
+      setNextCursor(null)
+      setHasNextPage(false)
+    }
     setPageError(null)
     try {
       const response = await communicationApi.getDeliveryLogs({
@@ -32,9 +50,15 @@ export default function DeliveryLogsPage() {
         status: status || undefined,
         recipient: recipient || undefined,
         countryCode: countryCode || undefined,
-        limit: 50,
+        limit: 25,
+        cursor: append ? nextCursor ?? undefined : undefined,
       })
-      if (response.success) setLogs(response.data.items)
+      if (response.success) {
+        const { items, nextCursor: cursor, hasNextPage: next } = extractPaged(response)
+        setLogs((prev) => (append ? [...prev, ...items] : items))
+        setNextCursor(cursor)
+        setHasNextPage(next)
+      }
     } catch (error: any) {
       console.error('Failed to load delivery logs:', error)
       if (error instanceof ApiError) {
@@ -44,6 +68,7 @@ export default function DeliveryLogsPage() {
       }
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
@@ -108,8 +133,8 @@ export default function DeliveryLogsPage() {
       {pageError ? (
         <ApiErrorState message={pageError.message} status={pageError.status} onRetry={load} />
       ) : (
-        <Card className="border-0 shadow-sm">
-          <Card.Body className="p-0">
+      <Card className="border-0 shadow-sm">
+        <Card.Body className="p-0">
             {loading ? (
               <div className="text-center py-5">
                 <Spinner animation="border" variant="primary" />
@@ -117,6 +142,7 @@ export default function DeliveryLogsPage() {
             ) : logs.length === 0 ? (
               <EmptyState message="No delivery logs match the current filters." icon="solar:clipboard-list-bold-duotone" />
             ) : (
+              <>
               <Table hover responsive className="mb-0 align-middle">
                 <thead className="bg-light">
                   <tr>
@@ -153,6 +179,15 @@ export default function DeliveryLogsPage() {
                   ))}
                 </tbody>
               </Table>
+              {hasNextPage && (
+                <div className="text-center py-3 border-top">
+                  <Button variant="outline-primary" size="sm" disabled={loadingMore} onClick={() => load(true)}>
+                    {loadingMore ? <Spinner animation="border" size="sm" className="me-1" /> : null}
+                    Load More
+                  </Button>
+                </div>
+              )}
+              </>
             )}
           </Card.Body>
         </Card>

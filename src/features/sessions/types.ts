@@ -17,8 +17,16 @@ export interface ActiveSession {
 
 export interface ListSessionsResponse {
   success: boolean
-  sessions: ActiveSession[]
-  total: number
-  limit: number
-  offset: number
+  data?: {
+    items?: ActiveSession[]
+    total?: number
+    nextCursor?: string | null
+    hasNextPage?: boolean
+    limit?: number
+  }
+  sessions?: ActiveSession[]
+  items?: ActiveSession[]
+  nextCursor?: string | null
+  hasNextPage?: boolean
+  limit?: number
 }

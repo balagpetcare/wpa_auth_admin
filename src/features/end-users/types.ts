@@ -21,10 +21,35 @@ export interface EndUser {
   createdAt: string
   updatedAt: string
   lastLoginAt?: string | null
+  lastSeenAt?: string | null
   lastPasswordChangedAt?: string | null
   roles: EndUserRole[]
   oauthProviders?: string[]
   isLastSuperAdmin?: boolean
+}
+
+export interface EndUserPresenceApp {
+  clientId: string
+  name: string
+  slug: string
+}
+
+export interface EndUserPresence {
+  onlineNow: boolean
+  appsOnline: EndUserPresenceApp[]
+  lastSeenAt?: string | null
+  lastLoginAt?: string | null
+  activeSessions: {
+    total: number
+    active: number
+    activeSessions: Array<{
+      id: string
+      clientId: string
+      createdAt: string
+      lastActiveAt: string
+      expiresAt: string
+    }>
+  }
 }
 
 export interface EndUserDetail extends EndUser {

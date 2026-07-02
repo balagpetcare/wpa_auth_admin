@@ -11,7 +11,7 @@ import React, { useEffect, useState } from 'react'
 import { Row, Col, Card, Table, Button, Form, Offcanvas, Modal, Spinner, Badge, Tabs, Tab } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 import { endUsersApi } from '@/features/end-users/api'
-import { EndUser, EndUserDetail } from '@/features/end-users/types'
+import { EndUser, EndUserDetail, EndUserPresence } from '@/features/end-users/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { StatusBadge, EmptyState } from '@/components/dashboard/DashboardComponents'
 import ApiErrorState from '@/components/common/ApiErrorState'
@@ -30,8 +30,17 @@ export default function EndUsersPage() {
   const [loadingMore, setLoadingMore] = useState(false)
 
   const [selectedUser, setSelectedUser] = useState<EndUserDetail | null>(null)
+  const [selectedPresence, setSelectedPresence] = useState<EndUserPresence | null>(null)
   const [showDrawer, setShowDrawer] = useState(false)
   const [drawerLoading, setDrawerLoading] = useState(false)
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [auditNextCursor, setAuditNextCursor] = useState<string | null>(null)
+  const [auditHasNextPage, setAuditHasNextPage] = useState(false)
+  const [auditLoadingMore, setAuditLoadingMore] = useState(false)
+  const [sessionLogs, setSessionLogs] = useState<any[]>([])
+  const [sessionNextCursor, setSessionNextCursor] = useState<string | null>(null)
+  const [sessionHasNextPage, setSessionHasNextPage] = useState(false)
+  const [sessionLoadingMore, setSessionLoadingMore] = useState(false)
 
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [confirmAction, setConfirmAction] = useState<{ targetId: string; nextStatus: string; title: string; message: string } | null>(null)
@@ -82,16 +91,64 @@ export default function EndUsersPage() {
     setShowDrawer(true)
     setDrawerLoading(true)
     setSelectedUser(user)
+    setSelectedPresence(null)
+    setAuditLogs([])
+    setSessionLogs([])
+    setAuditNextCursor(null)
+    setSessionNextCursor(null)
+    setAuditHasNextPage(false)
+    setSessionHasNextPage(false)
     try {
-      const response = await endUsersApi.getEndUser(user.id)
-      if (response.success) {
-        setSelectedUser(response.user)
+      const [detailResponse, presenceResponse] = await Promise.all([
+        endUsersApi.getEndUser(user.id),
+        endUsersApi.getPresence(user.id).catch((error) => {
+          console.warn('Presence data unavailable:', error)
+          return null
+        }),
+      ])
+      if (detailResponse.success) {
+        setSelectedUser(detailResponse.user)
+        setAuditLogs(detailResponse.user.recentAuditLogs || [])
+        setSessionLogs(detailResponse.user.recentSessions || [])
+      }
+      if (presenceResponse?.success) {
+        setSelectedPresence(presenceResponse.presence)
       }
     } catch (error) {
       console.error('Failed to load end user detail:', error)
       toast.error('Failed to load user detail.')
     } finally {
       setDrawerLoading(false)
+    }
+  }
+
+  const loadMoreAuditLogs = async () => {
+    if (!selectedUser || !auditHasNextPage) return
+    setAuditLoadingMore(true)
+    try {
+      const response = await endUsersApi.getAuditLogs(selectedUser.id, { limit: 25, cursor: auditNextCursor ?? undefined })
+      const data = response.data ?? {}
+      const items = data.items ?? []
+      setAuditLogs((prev) => [...prev, ...items])
+      setAuditNextCursor(data.nextCursor ?? null)
+      setAuditHasNextPage(Boolean(data.hasNextPage))
+    } finally {
+      setAuditLoadingMore(false)
+    }
+  }
+
+  const loadMoreSessions = async () => {
+    if (!selectedUser || !sessionHasNextPage) return
+    setSessionLoadingMore(true)
+    try {
+      const response = await endUsersApi.getSessions(selectedUser.id, { limit: 25, cursor: sessionNextCursor ?? undefined })
+      const data = response.data ?? {}
+      const items = data.items ?? []
+      setSessionLogs((prev) => [...prev, ...items])
+      setSessionNextCursor(data.nextCursor ?? null)
+      setSessionHasNextPage(Boolean(data.hasNextPage))
+    } finally {
+      setSessionLoadingMore(false)
     }
   }
 
@@ -301,6 +358,42 @@ export default function EndUsersPage() {
               <Tabs defaultActiveKey="profile" className="mb-3">
                 <Tab eventKey="profile" title="Profile">
                   <div className="d-flex flex-column gap-2 mt-2 fs-13">
+                    <Card className="border-0 bg-light mb-2">
+                      <Card.Body className="p-3">
+                        <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                          <Badge bg={selectedPresence?.onlineNow ? 'success' : 'secondary'}>
+                            {selectedPresence?.onlineNow ? 'Online Now' : 'Offline'}
+                          </Badge>
+                          <Badge bg={selectedPresence?.onlineNow ? 'soft-success' : 'soft-secondary'} className={selectedPresence?.onlineNow ? 'text-success' : 'text-secondary'}>
+                            {selectedPresence?.onlineNow || (selectedPresence?.lastSeenAt && Date.now() - new Date(selectedPresence.lastSeenAt).getTime() < 15 * 60 * 1000)
+                              ? 'Recently Active'
+                              : 'Not Recently Active'}
+                          </Badge>
+                        </div>
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted">Last Seen</span>
+                          <span className="fw-semibold">
+                            {selectedPresence?.lastSeenAt || selectedUser.lastSeenAt
+                              ? new Date(selectedPresence?.lastSeenAt || selectedUser.lastSeenAt || '').toLocaleString()
+                              : 'Never'}
+                          </span>
+                        </div>
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted">Last Login</span>
+                          <span className="fw-semibold">
+                            {selectedPresence?.lastLoginAt || selectedUser.lastLoginAt
+                              ? new Date(selectedPresence?.lastLoginAt || selectedUser.lastLoginAt || '').toLocaleString()
+                              : 'Never'}
+                          </span>
+                        </div>
+                        <div className="d-flex justify-content-between">
+                          <span className="text-muted">Active Sessions</span>
+                          <span className="fw-semibold">
+                            {selectedPresence?.activeSessions.active ?? selectedUser.recentSessions?.filter((session) => !session.revokedAt).length ?? 0}
+                          </span>
+                        </div>
+                      </Card.Body>
+                    </Card>
                     <div className="d-flex justify-content-between">
                       <span className="text-muted">Phone</span>
                       <span className="fw-semibold">{selectedUser.phone || '—'}</span>
@@ -321,6 +414,20 @@ export default function EndUsersPage() {
                       <span className="text-muted">Last Login</span>
                       <span className="fw-semibold">{selectedUser.lastLoginAt ? new Date(selectedUser.lastLoginAt).toLocaleDateString() : 'Never'}</span>
                     </div>
+                    <div className="d-flex flex-column gap-2">
+                      <span className="text-muted">Apps Online</span>
+                      <div className="d-flex flex-wrap gap-1">
+                        {(selectedPresence?.appsOnline ?? []).length > 0 ? (
+                          selectedPresence!.appsOnline.map((app) => (
+                            <Badge key={app.clientId} bg="soft-info" className="text-info">
+                              {app.name}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="fw-semibold">None</span>
+                        )}
+                      </div>
+                    </div>
                     {selectedUser.oauthProviders && selectedUser.oauthProviders.length > 0 && (
                       <div className="d-flex justify-content-between">
                         <span className="text-muted">Connected Accounts</span>
@@ -331,8 +438,8 @@ export default function EndUsersPage() {
                 </Tab>
                 <Tab eventKey="sessions" title="Sessions">
                   <div className="mt-2">
-                    {selectedUser.recentSessions && selectedUser.recentSessions.length > 0 ? (
-                      selectedUser.recentSessions.map((s) => (
+                    {sessionLogs.length > 0 ? (
+                      sessionLogs.map((s) => (
                         <div key={s.id} className="border-bottom py-2 fs-12">
                           <div className="fw-semibold">{s.ipAddress || 'Unknown IP'}</div>
                           <div className="text-muted text-truncate">{s.userAgent || 'Unknown device'}</div>
@@ -342,12 +449,20 @@ export default function EndUsersPage() {
                     ) : (
                       <EmptyState message="No recent sessions." icon="solar:bookmark-opened-bold-duotone" />
                     )}
+                    {sessionHasNextPage && (
+                      <div className="text-center mt-3">
+                        <Button variant="outline-primary" size="sm" onClick={loadMoreSessions} disabled={sessionLoadingMore}>
+                          {sessionLoadingMore ? <Spinner animation="border" size="sm" className="me-1" /> : null}
+                          Load More
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </Tab>
                 <Tab eventKey="activity" title="Activity">
                   <div className="mt-2">
-                    {selectedUser.recentAuditLogs && selectedUser.recentAuditLogs.length > 0 ? (
-                      selectedUser.recentAuditLogs.map((a) => (
+                    {auditLogs.length > 0 ? (
+                      auditLogs.map((a) => (
                         <div key={a.id} className="border-bottom py-2 fs-12">
                           <div className="fw-semibold">{a.action}</div>
                           <div className="text-muted">{new Date(a.createdAt).toLocaleString()}</div>
@@ -355,6 +470,14 @@ export default function EndUsersPage() {
                       ))
                     ) : (
                       <EmptyState message="No recent audit activity." icon="solar:document-text-bold-duotone" />
+                    )}
+                    {auditHasNextPage && (
+                      <div className="text-center mt-3">
+                        <Button variant="outline-primary" size="sm" onClick={loadMoreAuditLogs} disabled={auditLoadingMore}>
+                          {auditLoadingMore ? <Spinner animation="border" size="sm" className="me-1" /> : null}
+                          Load More
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </Tab>

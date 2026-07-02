@@ -11,7 +11,6 @@ import {
   Modal,
   Badge,
   Spinner,
-  Pagination
 } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 import { auditLogsApi } from '@/features/audit-logs/api'
@@ -21,13 +20,13 @@ import { EmptyState, ErrorState } from '@/components/dashboard/DashboardComponen
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([])
-  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Pagination & Filtering
-  const [page, setPage] = useState(1)
   const [limit] = useState(20)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasNextPage, setHasNextPage] = useState(false)
   const [userIdFilter, setUserIdFilter] = useState('')
   const [actionFilter, setActionFilter] = useState('')
 
@@ -35,7 +34,7 @@ export default function AuditLogsPage() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [showModal, setShowModal] = useState(false)
 
-  const loadLogs = async () => {
+  const loadLogs = async (append = false) => {
     setLoading(true)
     setError(null)
     try {
@@ -43,11 +42,13 @@ export default function AuditLogsPage() {
         userId: userIdFilter || undefined,
         action: actionFilter || undefined,
         limit,
-        page,
+        cursor: append ? nextCursor ?? undefined : undefined,
       })
-      if (response.success && response.logs) {
-        setLogs(response.logs)
-        setTotal(response.total || 0)
+      const items = response.items ?? response.data?.items ?? []
+      if (response.success) {
+        setLogs((prev) => (append ? [...prev, ...items] : items))
+        setNextCursor(response.nextCursor ?? response.data?.nextCursor ?? null)
+        setHasNextPage(Boolean(response.hasNextPage ?? response.data?.hasNextPage))
       }
     } catch (err: any) {
       console.error('Failed to load audit logs:', err)
@@ -59,7 +60,7 @@ export default function AuditLogsPage() {
 
   useEffect(() => {
     loadLogs()
-  }, [page, userIdFilter, actionFilter])
+  }, [userIdFilter, actionFilter])
 
   // Get action color badge
   const getActionBadge = (action: string) => {
@@ -76,8 +77,6 @@ export default function AuditLogsPage() {
     setShowModal(true)
   }
 
-  const totalPages = Math.ceil(total / limit)
-
   return (
     <div className="container-fluid py-4">
       {/* HEADER */}
@@ -86,7 +85,7 @@ export default function AuditLogsPage() {
           <h4 className="fw-bold text-dark mb-1">System Audit Logs</h4>
           <p className="text-muted mb-0 fs-13">Inspect cryptographic activity, account modifications, credentials rotation, and operations histories.</p>
         </div>
-        <Button variant="outline-primary" size="sm" onClick={loadLogs} disabled={loading} className="d-flex align-items-center gap-1 px-3 py-2 shadow-sm">
+        <Button variant="outline-primary" size="sm" onClick={() => loadLogs(false)} disabled={loading} className="d-flex align-items-center gap-1 px-3 py-2 shadow-sm">
           <IconifyIcon icon="solar:restart-bold-duotone" className={loading ? 'spin fs-16' : 'fs-16'} />
           Refresh Audit Trail
         </Button>
@@ -105,7 +104,8 @@ export default function AuditLogsPage() {
                 value={userIdFilter}
                 onChange={(e) => {
                   setUserIdFilter(e.target.value)
-                  setPage(1)
+                  setNextCursor(null)
+                  setHasNextPage(false)
                 }}
               />
             </div>
@@ -116,7 +116,8 @@ export default function AuditLogsPage() {
                 value={actionFilter}
                 onChange={(e) => {
                   setActionFilter(e.target.value)
-                  setPage(1)
+                  setNextCursor(null)
+                  setHasNextPage(false)
                 }}
               />
             </div>
@@ -185,20 +186,11 @@ export default function AuditLogsPage() {
               </div>
 
               {/* PAGINATION PANEL */}
-              {totalPages > 1 && (
-                <div className="p-4 border-top d-flex align-items-center justify-content-between">
-                  <span className="fs-13 text-muted">
-                    Showing Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({total} entries)
-                  </span>
-                  <Pagination className="mb-0">
-                    <Pagination.Prev disabled={page === 1} onClick={() => setPage(page - 1)} />
-                    {[...Array(totalPages)].map((_, idx) => (
-                      <Pagination.Item key={idx} active={page === idx + 1} onClick={() => setPage(idx + 1)}>
-                        {idx + 1}
-                      </Pagination.Item>
-                    ))}
-                    <Pagination.Next disabled={page === totalPages} onClick={() => setPage(page + 1)} />
-                  </Pagination>
+              {hasNextPage && (
+                <div className="p-4 border-top text-center">
+                  <Button variant="outline-primary" size="sm" onClick={() => loadLogs(true)}>
+                    Load More
+                  </Button>
                 </div>
               )}
             </>

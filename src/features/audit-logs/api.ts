@@ -6,13 +6,13 @@ export const auditLogsApi = {
     userId?: string
     action?: string
     limit?: number
-    page?: number
+    cursor?: string
   }): Promise<ListAuditLogsResponse> {
     const searchParams = new URLSearchParams()
     if (params.userId) searchParams.append('userId', params.userId)
     if (params.action) searchParams.append('action', params.action)
     if (params.limit) searchParams.append('limit', String(params.limit))
-    if (params.page) searchParams.append('page', String(params.page))
+    if (params.cursor) searchParams.append('cursor', params.cursor)
 
     return apiClient.get<ListAuditLogsResponse>(`/admin/audit-logs?${searchParams.toString()}`)
   },

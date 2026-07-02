@@ -7,14 +7,14 @@ export const sessionsApi = {
     status?: string
     userId?: string
     limit?: number
-    page?: number
+    cursor?: string
   }): Promise<ListSessionsResponse> {
     const searchParams = new URLSearchParams()
     if (params.search) searchParams.append('search', params.search)
     if (params.status) searchParams.append('status', params.status)
     if (params.userId) searchParams.append('userId', params.userId)
     if (params.limit) searchParams.append('limit', String(params.limit))
-    if (params.page) searchParams.append('page', String(params.page))
+    if (params.cursor) searchParams.append('cursor', params.cursor)
 
     return apiClient.get<ListSessionsResponse>(`/admin/sessions?${searchParams.toString()}`)
   },

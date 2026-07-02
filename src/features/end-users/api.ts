@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient'
-import { EndUserDetail, ListEndUsersResponse } from './types'
+import { EndUserDetail, EndUserPresence, ListEndUsersResponse } from './types'
 
 export const endUsersApi = {
   async listEndUsers(params: {
@@ -27,17 +27,27 @@ export const endUsersApi = {
     return apiClient.get(`/admin/end-users/${userId}`)
   },
 
+  async getPresence(userId: string): Promise<{ success: boolean; presence: EndUserPresence }> {
+    return apiClient.get(`/admin/end-users/${userId}/presence`)
+  },
+
   async updateStatus(userId: string, status: string): Promise<{ success: boolean; user: EndUserDetail }> {
     return apiClient.patch(`/admin/end-users/${userId}/status`, { status })
   },
 
-  async getSessions(userId: string): Promise<{ success: boolean; sessions: any[] }> {
-    return apiClient.get(`/admin/end-users/${userId}/sessions`)
+  async getSessions(userId: string, params?: { cursor?: string; limit?: number }): Promise<{ success: boolean; data?: { items?: any[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number } }> {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.append('limit', String(params.limit))
+    if (params?.cursor) searchParams.append('cursor', params.cursor)
+    return apiClient.get(`/admin/end-users/${userId}/sessions?${searchParams.toString()}`)
   },
 
   // GET .../audit-logs uses lib/pagination.ts's paginatedResponse(), which
   // returns `{ data: T[], meta: {...} }` (data is the array directly).
-  async getAuditLogs(userId: string): Promise<{ success: boolean; data: any[]; meta?: { total: number; page: number; limit: number; totalPages: number } }> {
-    return apiClient.get(`/admin/end-users/${userId}/audit-logs`)
+  async getAuditLogs(userId: string, params?: { cursor?: string; limit?: number }): Promise<{ success: boolean; data?: { items?: any[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number } }> {
+    const searchParams = new URLSearchParams()
+    if (params?.limit) searchParams.append('limit', String(params.limit))
+    if (params?.cursor) searchParams.append('cursor', params.cursor)
+    return apiClient.get(`/admin/end-users/${userId}/audit-logs?${searchParams.toString()}`)
   },
 }

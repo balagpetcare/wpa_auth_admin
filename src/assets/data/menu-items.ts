@@ -77,6 +77,12 @@ export const MENU_ITEMS: MenuItemType[] = [
     url: '/audit-logs',
   },
   {
+    key: 'security-events',
+    label: 'Security Events',
+    icon: 'solar:shield-warning-bold-duotone',
+    url: '/security-events',
+  },
+  {
     key: 'security-settings',
     label: 'Security Settings',
     icon: 'solar:lock-bold-duotone',

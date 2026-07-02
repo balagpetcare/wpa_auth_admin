@@ -20,8 +20,15 @@ export interface AuditLog {
 
 export interface ListAuditLogsResponse {
   success: boolean
-  logs: AuditLog[]
-  total: number
-  limit: number
-  offset: number
+  data?: {
+    items?: AuditLog[]
+    total?: number
+    nextCursor?: string | null
+    hasNextPage?: boolean
+    limit?: number
+  }
+  items?: AuditLog[]
+  nextCursor?: string | null
+  hasNextPage?: boolean
+  limit?: number
 }

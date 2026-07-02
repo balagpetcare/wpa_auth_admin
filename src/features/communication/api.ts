@@ -132,7 +132,8 @@ export const communicationApi = {
     recipient?: string
     countryCode?: string
     limit?: number
-  }): Promise<{ success: boolean; data: { items: DeliveryLog[] } }> {
+    cursor?: string
+  }): Promise<{ success: boolean; data: { items: DeliveryLog[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number } }> {
     const searchParams = new URLSearchParams()
     if (params?.channel) searchParams.append('channel', params.channel)
     if (params?.providerId) searchParams.append('providerId', params.providerId)
@@ -140,11 +141,15 @@ export const communicationApi = {
     if (params?.recipient) searchParams.append('recipient', params.recipient)
     if (params?.countryCode) searchParams.append('countryCode', params.countryCode)
     if (params?.limit) searchParams.append('limit', String(params.limit))
+    if (params?.cursor) searchParams.append('cursor', params.cursor)
     return apiClient.get(`/admin/communication/delivery-logs?${searchParams.toString()}`)
   },
 
-  async getProviderAuditLogs(limit = 50): Promise<{ success: boolean; data: { items: ProviderAuditLog[] } }> {
-    return apiClient.get(`/admin/communication/provider-audit-logs?limit=${limit}`)
+  async getProviderAuditLogs(limit = 50, cursor?: string): Promise<{ success: boolean; data: { items: ProviderAuditLog[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number } }> {
+    const searchParams = new URLSearchParams()
+    searchParams.append('limit', String(limit))
+    if (cursor) searchParams.append('cursor', cursor)
+    return apiClient.get(`/admin/communication/provider-audit-logs?${searchParams.toString()}`)
   },
 
   // ── Email Branding (global default) ──────────────────────────────────
