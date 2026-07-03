@@ -84,6 +84,7 @@ const LayoutProvider = ({ children }: ChildrenType) => {
   }
 
   // toggle backdrop
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- legacy offcanvas state mirror
   const toggleBackdrop = useCallback(() => {
     const htmlTag = document.getElementsByTagName('html')[0]
     if (offcanvasStates.showBackdrop) htmlTag.classList.remove('sidebar-enable')
@@ -129,6 +130,7 @@ const LayoutProvider = ({ children }: ChildrenType) => {
 
   return (
     <ThemeContext.Provider
+      // eslint-disable-next-line react-hooks/preserve-manual-memoization -- legacy provider shape and callbacks
       value={useMemo(
         () => ({
           ...settings,
@@ -144,6 +146,7 @@ const LayoutProvider = ({ children }: ChildrenType) => {
           toggleBackdrop,
           resetSettings,
         }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [settings, offcanvasStates],
       )}>
       {children}

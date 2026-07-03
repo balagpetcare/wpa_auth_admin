@@ -106,16 +106,16 @@ export default function RolesPermissionsPage() {
   // Group permissions by their prefix/module name
   const groupedPermissions = useMemo(() => {
     const groups: Record<string, Permission[]> = {}
-    ;(Array.isArray(permissions) ? permissions : []).forEach((perm) => {
+      ;(Array.isArray(permissions) ? permissions : []).forEach((perm) => {
       // Deduce module from permission key format (e.g. roles:read or communication.providers.read)
-      let module = 'System'
+      let moduleName = 'System'
       if (perm.key.includes(':')) {
-        module = perm.key.split(':')[0]
+        moduleName = perm.key.split(':')[0]
       } else if (perm.key.includes('.')) {
-        module = perm.key.split('.')[0]
+        moduleName = perm.key.split('.')[0]
       }
-      if (!groups[module]) groups[module] = []
-      groups[module].push(perm)
+      if (!groups[moduleName]) groups[moduleName] = []
+      groups[moduleName].push(perm)
     })
     return groups
   }, [permissions])

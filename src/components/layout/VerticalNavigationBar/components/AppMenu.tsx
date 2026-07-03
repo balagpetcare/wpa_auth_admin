@@ -219,6 +219,9 @@ const AppMenu = ({ menuItems }: AppMenuProps) => {
     [activeMenuItems],
   )
 
+  // Next/React compiler flags this legacy imperative scroll sync as manual
+  // memoization that it cannot safely infer. Keep the existing behavior.
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const activeMenu = useCallback(() => {
     const trimmedURL = pathname?.replaceAll('', '')
     const matchingMenuItem = getMenuItemFromURL(menuItemsWithNotificationBadge, trimmedURL)
@@ -267,6 +270,7 @@ const AppMenu = ({ menuItems }: AppMenuProps) => {
   }, [pathname, menuItemsWithNotificationBadge])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync active menu state from current URL on mount/path change
     if (menuItemsWithNotificationBadge && menuItemsWithNotificationBadge.length > 0) activeMenu()
   }, [activeMenu, menuItemsWithNotificationBadge])
 

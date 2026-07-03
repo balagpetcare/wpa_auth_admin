@@ -54,6 +54,17 @@ export const MENU_ITEMS: MenuItemType[] = [
     url: '/oauth',
   },
   {
+    key: 'authentication-title',
+    label: 'AUTHENTICATION',
+    isTitle: true,
+  },
+  {
+    key: 'social-login-providers',
+    label: 'Social Login Providers',
+    icon: 'solar:users-group-rounded-bold-duotone',
+    url: '/authentication/social-providers',
+  },
+  {
     key: 'security-title',
     label: 'SECURITY',
     isTitle: true,

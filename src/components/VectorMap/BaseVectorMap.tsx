@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 
 interface BaseVectorMapProps {
   width?: string
@@ -10,20 +10,18 @@ interface BaseVectorMapProps {
 
 const BaseVectorMap = ({ width, height, options, type }: BaseVectorMapProps) => {
   const selectorId = type + new Date().getTime()
-  const [map, setMap] = useState<any>()
+  const mapRef = useRef<any>(null)
 
   useEffect(() => {
-    if (!map) {
+    if (!mapRef.current) {
       // create jsvectormap
-      const map = new (window as any)['jsVectorMap']({
+      mapRef.current = new (window as any)['jsVectorMap']({
         selector: '#' + selectorId,
         map: type,
         ...options,
       })
-
-      setMap(map)
     }
-  }, [selectorId, map, options, type])
+  }, [selectorId, options, type])
 
   return (
     <>

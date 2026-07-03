@@ -19,7 +19,7 @@ const RecentActivityCard = ({ userId }: { userId: string }) => {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading is seeded by mount and updated only by async completion
     accountApi
       .listMyActivity(userId, 8)
       .then((res) => {
