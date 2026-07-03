@@ -1,33 +1,46 @@
 import Link from 'next/link'
-import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import Image from 'next/image'
+import logoWhite from '@/assets/images/300-80-white.png'
+import logoDark from '@/assets/images/300-80-dark.png'
+import logoSm from '@/assets/images/logo-sm.jpg'
 
-// UI polish fix (docs/admin-panel-shell-ui-polish.md): the two variants below
-// (.logo-dark for light theme, .logo-light for dark theme) are shown/hidden
-// via scoped CSS in src/assets/scss/structure/_vertical.scss, not Bootstrap's
-// `d-flex` utility — this project has `$enable-important-utilities: true`, so
-// `d-flex` compiles to `display: flex !important` and was permanently
-// overriding the `display: none` toggle on the hidden variant, causing both
-// to render stacked at once (the "duplicated branding" bug). Layout for both
-// variants now lives entirely in the scoped `.logo-dark`/`.logo-light` rules.
 const LogoBox = () => {
   return (
     <div className="logo-box">
-      <Link href="/" className="logo-dark text-decoration-none">
-        <span className="logo-icon">
-          <IconifyIcon icon="solar:shield-check-bold-duotone" className="fs-22 text-white" />
-        </span>
-        <span className="logo-text">
-          <span className="logo-title text-white">WPA Central Auth</span>
-          <small className="logo-subtitle text-white-50">Identity Platform</small>
+      <Link href="/" className="logo-full logo-full-dark text-decoration-none" aria-label="WPA Central Auth">
+        <span className="logo-image-wrap logo-full-wrap">
+          <Image
+            src={logoWhite}
+            alt="WPA Central Auth"
+            width={150}
+            height={40}
+            priority
+            className="logo-image logo-full-image"
+          />
         </span>
       </Link>
-      <Link href="/" className="logo-light text-decoration-none">
-        <span className="logo-icon">
-          <IconifyIcon icon="solar:shield-check-bold-duotone" className="fs-22 text-primary" />
+      <Link href="/" className="logo-full logo-full-light text-decoration-none" aria-label="WPA Central Auth">
+        <span className="logo-image-wrap logo-full-wrap">
+          <Image
+            src={logoDark}
+            alt="WPA Central Auth"
+            width={150}
+            height={40}
+            priority
+            className="logo-image logo-full-image"
+          />
         </span>
-        <span className="logo-text">
-          <span className="logo-title text-body">WPA Central Auth</span>
-          <small className="logo-subtitle text-muted">Identity Platform</small>
+      </Link>
+      <Link href="/" className="logo-sm text-decoration-none" aria-label="WPA Central Auth">
+        <span className="logo-image-wrap logo-sm-wrap">
+          <Image
+            src={logoSm}
+            alt="WPA Central Auth"
+            width={40}
+            height={40}
+            priority
+            className="logo-image logo-sm-image"
+          />
         </span>
       </Link>
     </div>

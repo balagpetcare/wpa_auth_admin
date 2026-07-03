@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Card, Button } from 'react-bootstrap'
+import { Card } from 'react-bootstrap'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import Link from 'next/link'
 
@@ -31,11 +31,9 @@ export default function PlaceholderPage({
           </span>
         </div>
         <div>
-          <Link href="/dashboard" passHref legacyBehavior>
-            <Button variant="primary" className="px-4 py-2">
-              <IconifyIcon icon="solar:home-bold-duotone" className="me-2 align-middle fs-16" />
-              Back to Dashboard
-            </Button>
+          <Link href="/dashboard" className="btn btn-primary px-4 py-2">
+            <IconifyIcon icon="solar:home-bold-duotone" className="me-2 align-middle fs-16" />
+            Back to Dashboard
           </Link>
         </div>
       </Card>

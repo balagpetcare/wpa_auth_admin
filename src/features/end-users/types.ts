@@ -23,6 +23,19 @@ export interface EndUser {
   lastLoginAt?: string | null
   lastSeenAt?: string | null
   lastPasswordChangedAt?: string | null
+  country?: string | null
+  state?: string | null
+  city?: string | null
+  timezone?: string | null
+  externalRefId?: string | null
+  registrationSource?: string | null
+  riskScore?: number
+  failedLoginCount?: number
+  lastLoginIp?: string | null
+  lastLoginIpCountry?: string | null
+  lastLoginDeviceType?: string | null
+  lastLoginOs?: string | null
+  lastLoginBrowser?: string | null
   roles: EndUserRole[]
   oauthProviders?: string[]
   isLastSuperAdmin?: boolean
@@ -62,11 +75,13 @@ export interface ListEndUsersResponse {
   success: boolean
   data?: {
     items?: EndUser[]
+    total?: number
+    page?: number
+    pageSize?: number
+    totalPages?: number
     pagination?: {
-      limit?: number
-      nextCursor?: string | null
       hasNextPage?: boolean
-      totalExact?: number
+      nextCursor?: string | null
     }
   }
 }

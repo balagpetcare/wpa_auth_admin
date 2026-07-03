@@ -83,6 +83,12 @@ export const MENU_ITEMS: MenuItemType[] = [
     url: '/security-events',
   },
   {
+    key: 'notifications',
+    label: 'Notifications',
+    icon: 'solar:bell-bing-bold-duotone',
+    url: '/notifications',
+  },
+  {
     key: 'security-settings',
     label: 'Security Settings',
     icon: 'solar:lock-bold-duotone',
@@ -94,16 +100,16 @@ export const MENU_ITEMS: MenuItemType[] = [
     isTitle: true,
   },
   {
-    key: 'email-settings',
-    label: 'Email Settings',
+    key: 'email-gateway',
+    label: 'Email Gateway',
     icon: 'solar:letter-opened-bold-duotone',
-    url: '/email-settings',
+    url: '/email-gateway',
   },
   {
-    key: 'sms-settings',
-    label: 'SMS / OTP Settings',
+    key: 'sms-gateway',
+    label: 'SMS / OTP Gateway',
     icon: 'solar:chat-square-bold-duotone',
-    url: '/sms-otp-settings',
+    url: '/sms-gateway',
   },
   // Phase 2.6A (docs/phase-2-6a-app-aware-communication-routing-ui.md):
   // admin UI foundation for the communication system's backend, which

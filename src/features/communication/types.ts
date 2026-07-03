@@ -26,6 +26,10 @@ export interface CommProviderCredential {
   // the backend always strips it before responding.
 }
 
+export type CommProviderDetail = CommProvider & {
+  credentials?: CommProviderCredential[]
+}
+
 export interface CommProvider {
   id: string
   name: string
@@ -71,6 +75,28 @@ export interface RoutingRule {
   updatedAt: string
 }
 
+export type DeliveryLogStatus =
+  | 'QUEUED'
+  | 'PENDING'
+  | 'SENT'
+  | 'FAILED'
+  | 'RETRIED'
+  | 'RETRY_SCHEDULED'
+  | 'RETRYING'
+  | 'DEAD_LETTER'
+  | 'CANCELLED'
+  | 'BLOCKED'
+
+export interface ProviderAttemptChainEntry {
+  attemptNo: number
+  providerId: string | null
+  providerCode: string | null
+  success: boolean
+  errorCode?: string | null
+  errorMessage?: string | null
+  at: string
+}
+
 export interface DeliveryLog {
   id: string
   channel: 'SMS' | 'EMAIL'
@@ -78,13 +104,37 @@ export interface DeliveryLog {
   recipient: string
   countryCode?: string | null
   providerId?: string | null
-  status: 'QUEUED' | 'SENT' | 'FAILED' | 'RETRIED' | 'BLOCKED'
+  provider?: { id: string; name: string; code: string } | null
+  status: DeliveryLogStatus
   attemptNo: number
   errorCode?: string | null
   errorMessage?: string | null
   sentAt?: string | null
   failedAt?: string | null
   createdAt: string
+  retryCount: number
+  maxRetries: number
+  nextRetryAt?: string | null
+  lastRetryAt?: string | null
+  lastErrorCode?: string | null
+  lastErrorMessage?: string | null
+  isRetryable: boolean
+  retryPolicyKey?: string | null
+  providerAttemptChain?: ProviderAttemptChainEntry[] | null
+  cancelledAt?: string | null
+  deadLetterAt?: string | null
+  nonRetryableReason?: string | null
+}
+
+export interface DeliveryLogDetail extends DeliveryLog {
+  messagePreview?: { subject?: string; text?: string; message?: string } | null
+  auditTrail?: Array<{
+    id: string
+    action: string
+    createdAt: string
+    actorAdmin?: { id: string; email?: string | null; username?: string | null } | null
+    metadata?: Record<string, unknown> | null
+  }>
 }
 
 export interface ProviderAuditLog {

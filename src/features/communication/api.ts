@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/apiClient'
-import { CommProvider, CommProviderCredential, RoutingRule, DeliveryLog, ProviderAuditLog, EmailTemplate, EmailBranding, ClientBranding } from './types'
+import { CommProvider, CommProviderCredential, CommProviderDetail, RoutingRule, DeliveryLog, DeliveryLogDetail, ProviderAuditLog, EmailTemplate, EmailBranding, ClientBranding } from './types'
 
 export interface CreateProviderInput {
   name: string
@@ -15,6 +15,8 @@ export interface CreateProviderInput {
   monthlyLimit?: number | null
   rateLimitPerMinute?: number | null
 }
+
+export interface UpdateProviderInput extends Partial<CreateProviderInput> {}
 
 export interface CreateCredentialInput {
   secrets: Record<string, string>
@@ -43,6 +45,15 @@ export interface CreateRoutingRuleInput {
   isActive?: boolean
 }
 
+export type ProviderListParams = {
+  type?: 'SMS' | 'EMAIL'
+  countryCode?: string
+  environment?: 'SANDBOX' | 'LIVE'
+  isActive?: boolean
+  status?: 'ACTIVE' | 'INACTIVE' | 'TESTING' | 'DISABLED'
+  healthStatus?: 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'DOWN'
+}
+
 // Phase 2.6A (docs/phase-2-6a-app-aware-communication-routing-ui.md):
 // extended to cover the full backend surface — providers CRUD,
 // credentials, activate/deactivate, routing rules CRUD, health, delivery
@@ -50,13 +61,40 @@ export interface CreateRoutingRuleInput {
 // of these backend routes already existed and were simply unused here.
 export const communicationApi = {
   // ── Providers ──────────────────────────────────────────────────────────
-  async listProviders(params?: { type?: 'SMS' | 'EMAIL' }): Promise<{ success: boolean; data: { items: CommProvider[] } }> {
+  async listProviders(params?: ProviderListParams): Promise<{ success: boolean; data: { items: CommProvider[] } }> {
     const searchParams = new URLSearchParams()
     if (params?.type) searchParams.append('type', params.type)
+    if (params?.countryCode) searchParams.append('countryCode', params.countryCode)
+    if (params?.environment) searchParams.append('environment', params.environment)
+    if (params?.isActive !== undefined) searchParams.append('isActive', String(params.isActive))
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.healthStatus) searchParams.append('healthStatus', params.healthStatus)
     return apiClient.get(`/admin/communication/providers?${searchParams.toString()}`)
   },
 
-  async getProvider(providerId: string): Promise<{ success: boolean; data: CommProvider }> {
+  async listEmailProviders(params?: Omit<ProviderListParams, 'type'>): Promise<{ success: boolean; data: { items: CommProvider[] } }> {
+    const searchParams = new URLSearchParams()
+    if (params?.countryCode) searchParams.append('countryCode', params.countryCode)
+    if (params?.environment) searchParams.append('environment', params.environment)
+    if (params?.isActive !== undefined) searchParams.append('isActive', String(params.isActive))
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.healthStatus) searchParams.append('healthStatus', params.healthStatus)
+    searchParams.append('type', 'EMAIL')
+    return apiClient.get(`/admin/communication/providers?${searchParams.toString()}`)
+  },
+
+  async listSmsProviders(params?: Omit<ProviderListParams, 'type'>): Promise<{ success: boolean; data: { items: CommProvider[] } }> {
+    const searchParams = new URLSearchParams()
+    if (params?.countryCode) searchParams.append('countryCode', params.countryCode)
+    if (params?.environment) searchParams.append('environment', params.environment)
+    if (params?.isActive !== undefined) searchParams.append('isActive', String(params.isActive))
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.healthStatus) searchParams.append('healthStatus', params.healthStatus)
+    searchParams.append('type', 'SMS')
+    return apiClient.get(`/admin/communication/providers?${searchParams.toString()}`)
+  },
+
+  async getProvider(providerId: string): Promise<{ success: boolean; data: CommProviderDetail }> {
     return apiClient.get(`/admin/communication/providers/${providerId}`)
   },
 
@@ -64,7 +102,7 @@ export const communicationApi = {
     return apiClient.post('/admin/communication/providers', data)
   },
 
-  async updateProvider(providerId: string, data: Partial<CreateProviderInput>): Promise<{ success: boolean; data: CommProvider }> {
+  async updateProvider(providerId: string, data: UpdateProviderInput): Promise<{ success: boolean; data: CommProvider }> {
     return apiClient.patch(`/admin/communication/providers/${providerId}`, data)
   },
 
@@ -103,6 +141,10 @@ export const communicationApi = {
     return apiClient.post(`/admin/communication/providers/${providerId}/test-email`, { to, subject, message })
   },
 
+  async healthCheckProvider(providerId: string): Promise<{ success: boolean; data: CommProviderDetail; message?: string }> {
+    return apiClient.post(`/admin/communication/providers/${providerId}/health-check`)
+  },
+
   // ── Routing Rules ──────────────────────────────────────────────────────
   async listRoutingRules(): Promise<{ success: boolean; data: { items: RoutingRule[] } }> {
     return apiClient.get('/admin/communication/routing-rules')
@@ -129,8 +171,13 @@ export const communicationApi = {
     channel?: 'SMS' | 'EMAIL'
     providerId?: string
     status?: string
+    purpose?: string
     recipient?: string
     countryCode?: string
+    retryableOnly?: boolean
+    deadLetterOnly?: boolean
+    createdFrom?: string
+    createdTo?: string
     limit?: number
     cursor?: string
   }): Promise<{ success: boolean; data: { items: DeliveryLog[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number } }> {
@@ -138,11 +185,36 @@ export const communicationApi = {
     if (params?.channel) searchParams.append('channel', params.channel)
     if (params?.providerId) searchParams.append('providerId', params.providerId)
     if (params?.status) searchParams.append('status', params.status)
+    if (params?.purpose) searchParams.append('purpose', params.purpose)
     if (params?.recipient) searchParams.append('recipient', params.recipient)
     if (params?.countryCode) searchParams.append('countryCode', params.countryCode)
+    if (params?.retryableOnly) searchParams.append('retryableOnly', 'true')
+    if (params?.deadLetterOnly) searchParams.append('deadLetterOnly', 'true')
+    if (params?.createdFrom) searchParams.append('createdFrom', params.createdFrom)
+    if (params?.createdTo) searchParams.append('createdTo', params.createdTo)
     if (params?.limit) searchParams.append('limit', String(params.limit))
     if (params?.cursor) searchParams.append('cursor', params.cursor)
     return apiClient.get(`/admin/communication/delivery-logs?${searchParams.toString()}`)
+  },
+
+  async getDeliveryLogDetail(id: string): Promise<{ success: boolean; data: DeliveryLogDetail }> {
+    return apiClient.get(`/admin/communication/delivery-logs/${id}`)
+  },
+
+  async retryDeliveryLog(id: string): Promise<{ success: boolean; message?: string }> {
+    return apiClient.post(`/admin/communication/delivery-logs/${id}/retry`)
+  },
+
+  async cancelDeliveryLogRetry(id: string): Promise<{ success: boolean; message?: string }> {
+    return apiClient.post(`/admin/communication/delivery-logs/${id}/cancel`)
+  },
+
+  async bulkRetryDeliveryLogs(ids: string[]): Promise<{ success: boolean; data: { requested: number; retried: number; skipped: number }; message?: string }> {
+    return apiClient.post(`/admin/communication/delivery-logs/bulk-retry`, { ids })
+  },
+
+  async bulkCancelDeliveryLogRetries(ids: string[]): Promise<{ success: boolean; data: { requested: number; cancelled: number; skipped: number }; message?: string }> {
+    return apiClient.post(`/admin/communication/delivery-logs/bulk-cancel`, { ids })
   },
 
   async getProviderAuditLogs(limit = 50, cursor?: string): Promise<{ success: boolean; data: { items: ProviderAuditLog[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number } }> {

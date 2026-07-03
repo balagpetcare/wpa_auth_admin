@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import SimplebarReactClient from '@/components/wrappers/SimplebarReactClient'
 import { apiClient } from '@/lib/apiClient'
@@ -18,13 +18,7 @@ interface NotificationData {
 }
 
 const normalizeNotificationItems = (payload: any): NotificationData[] => {
-  const candidates = [
-    payload?.items,
-    payload?.notifications,
-    payload?.data?.items,
-    payload?.data?.notifications,
-    payload?.data,
-  ]
+  const candidates = [payload?.items, payload?.notifications, payload?.data?.items, payload?.data?.notifications, payload?.data]
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate
   }
@@ -32,12 +26,7 @@ const normalizeNotificationItems = (payload: any): NotificationData[] => {
 }
 
 const normalizeUnreadCount = (payload: any): number => {
-  const candidates = [
-    payload?.unreadCount,
-    payload?.data?.unreadCount,
-    payload?.data?.count,
-    payload?.count,
-  ]
+  const candidates = [payload?.unreadCount, payload?.data?.unreadCount, payload?.data?.count, payload?.count]
   for (const candidate of candidates) {
     if (typeof candidate === 'number') return candidate
   }
@@ -47,13 +36,23 @@ const normalizeUnreadCount = (payload: any): number => {
 export default function Notifications() {
   const [items, setItems] = useState<NotificationData[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
-  const [loading, setLoading] = useState(false)
+
+  const previewItems = useMemo(() => {
+    return items
+      .filter((notification) => notification.status !== 'ARCHIVED')
+      .filter((notification) => notification.status !== 'READ')
+      .sort((a, b) => {
+        if (a.severity === 'CRITICAL' && b.severity !== 'CRITICAL') return -1
+        if (b.severity === 'CRITICAL' && a.severity !== 'CRITICAL') return 1
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      .slice(0, 5)
+  }, [items])
 
   const loadNotifications = async () => {
     try {
-      setLoading(true)
       const [listRes, countRes] = await Promise.allSettled([
-        apiClient.get('/admin/notifications'),
+        apiClient.get('/admin/notifications?status=unread&limit=5'),
         apiClient.get('/admin/notifications/unread-count'),
       ])
 
@@ -66,8 +65,6 @@ export default function Notifications() {
       console.error('Failed to load topbar notifications:', err)
       setItems([])
       setUnreadCount(0)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -79,7 +76,7 @@ export default function Notifications() {
     e.preventDefault()
     try {
       await apiClient.patch('/admin/notifications/read-all')
-      setItems([])
+      setItems((prev) => prev.map((notification) => ({ ...notification, status: 'READ' })))
       setUnreadCount(0)
     } catch (err) {
       console.error('Failed to mark notifications read:', err)
@@ -112,23 +109,29 @@ export default function Notifications() {
               <h6 className="m-0 fs-16 fw-semibold">Notifications</h6>
             </div>
             <div className="col-auto">
-              <Link href="" className="text-dark text-decoration-underline" onClick={handleClearAll}>
-                <small>Clear All</small>
+              <Link href="/notifications" className="text-dark text-decoration-underline">
+                <small>View all</small>
               </Link>
             </div>
           </Row>
         </div>
         <SimplebarReactClient style={{ maxHeight: 280 }}>
-          {items.length === 0 ? (
-            <div className="p-3 text-center text-muted fs-13">No notifications</div>
+          {previewItems.length === 0 ? (
+            <div className="p-3 text-center text-muted fs-13">No unread notifications</div>
           ) : (
-            items.map((notification) => (
+            previewItems.map((notification) => (
               <DropdownItem key={notification.id} className="py-3 border-bottom text-wrap">
                 <div className="d-flex align-items-start gap-2">
                   <div className="avatar-sm flex-shrink-0">
-                    <span className={`avatar-title rounded-circle fs-16 ${
-                      notification.severity === 'SECURITY' ? 'bg-soft-danger text-danger' : 'bg-soft-info text-info'
-                    }`}>
+                    <span
+                      className={`avatar-title rounded-circle fs-16 ${
+                        notification.severity === 'CRITICAL' || notification.severity === 'SECURITY'
+                          ? 'bg-soft-danger text-danger'
+                          : notification.category === 'SECURITY'
+                            ? 'bg-soft-warning text-warning'
+                            : 'bg-soft-info text-info'
+                      }`}
+                    >
                       {notification.category.substring(0, 1).toUpperCase()}
                     </span>
                   </div>
@@ -141,12 +144,12 @@ export default function Notifications() {
             ))
           )}
         </SimplebarReactClient>
-        {/* UI polish fix (docs/admin-panel-shell-ui-polish.md): this used to
-            be a "View All Notification" button linking to /dashboard — there
-            is no dedicated notifications page in this app, so that link was
-            dead/misleading. Removed rather than inventing a new page, per
-            the instruction to fix shell integration only, not build a new
-            notifications module. */}
+        <div className="p-2 border-top d-flex justify-content-between align-items-center">
+          <small className="text-muted">{unreadCount} unread</small>
+          <Link href="" className="text-dark text-decoration-underline" onClick={handleClearAll}>
+            <small>Mark all read</small>
+          </Link>
+        </div>
       </DropdownMenu>
     </Dropdown>
   )
