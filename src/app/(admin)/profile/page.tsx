@@ -61,7 +61,7 @@ const ProfilePage = () => {
       {!loading && account && (
         <Row>
           <Col lg={8}>
-            <ProfileHeroCard account={account} onAvatarChange={(avatarUrl) => setAccount({ ...account, avatarUrl })} />
+            <ProfileHeroCard account={account} onAvatarChange={(avatarUrl) => setAccount((current) => (current ? { ...current, avatarUrl } : current))} />
             <PersonalInfoCard account={account} onUpdated={setAccount} />
             <PreferencesCard account={account} onUpdated={setAccount} />
             <SecurityCard account={account} />

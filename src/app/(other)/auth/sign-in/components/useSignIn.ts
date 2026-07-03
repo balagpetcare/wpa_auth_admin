@@ -5,16 +5,15 @@ import { useForm } from 'react-hook-form'
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
 
-import { useNotificationContext } from '@/context/useNotificationContext'
 import useQueryParams from '@/hooks/useQueryParams'
 import { useAuth } from '@/context/useAuthContext'
 import { clearAuthTokens } from '@/lib/apiClient'
+import adminToast from '@/lib/adminToast'
 
 const useSignIn = () => {
   const [loading, setLoading] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const router = useRouter()
-  const { showNotification } = useNotificationContext()
   const { login: authLogin, authError } = useAuth()
 
   const queryParams = useQueryParams()
@@ -40,11 +39,15 @@ const useSignIn = () => {
     try {
       await authLogin(values.emailOrUsername, values.password)
       const redirectPath = queryParams['redirectTo'] ?? '/dashboard'
-      showNotification({ message: 'Successfully logged in. Redirecting...', variant: 'success' })
+      adminToast.success('Signed in', 'Successfully logged in. Redirecting...')
       router.replace(redirectPath)
     } catch (err: any) {
       console.error('Sign-in error:', err)
-      setLocalError(err?.message || 'Login failed. Please check your credentials.')
+      if (err?.status === 429 || err?.code === 'TEMPORARILY_BLOCKED') {
+        setLocalError('Too many login attempts. Please wait a few minutes and try again.')
+      } else {
+        setLocalError(err?.message || 'Login failed. Please check your credentials.')
+      }
     } finally {
       setLoading(false)
     }

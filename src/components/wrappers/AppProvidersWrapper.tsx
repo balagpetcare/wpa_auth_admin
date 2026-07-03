@@ -43,7 +43,18 @@ const AppProvidersWrapper = ({ children }: ChildrenType) => {
           <TitleProvider>
             <NotificationProvider>
               {children}
-              <ToastContainer theme="colored" />
+              <ToastContainer
+                position="top-right"
+                autoClose={4000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                pauseOnHover
+                draggable
+                theme="light"
+                closeButton
+                className="admin-toast-container"
+              />
             </NotificationProvider>
           </TitleProvider>
         </LayoutProvider>

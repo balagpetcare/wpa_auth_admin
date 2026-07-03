@@ -1,530 +1,490 @@
 'use client'
 
-// Phase 2 module (docs/phase-2-core-identity-admin-modules.md): the admin
-// panel previously had no screen for actual platform end-users/customers,
-// only for internal admin operators (see /admin-users). This page is backed
-// by the dedicated GET/PATCH /admin/end-users* routes added in
-// admin.routes.ts, which are permission-gated (users:read / users:manage)
-// separately from the admin-team routes.
-
-import React, { useEffect, useState } from 'react'
-import { Row, Col, Card, Table, Button, Form, Offcanvas, Modal, Spinner, Badge, Tabs, Tab } from 'react-bootstrap'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Badge, Button, Card, Col, Form, Modal, Offcanvas, Row, Spinner, Table } from 'react-bootstrap'
 import { toast } from 'react-toastify'
+import IconifyIcon from '@/components/wrappers/IconifyIcon'
+import ApiErrorState from '@/components/common/ApiErrorState'
+import { EmptyState, StatusBadge } from '@/components/dashboard/DashboardComponents'
+import { apiClient, ApiError } from '@/lib/apiClient'
 import { endUsersApi } from '@/features/end-users/api'
 import { EndUser, EndUserDetail, EndUserPresence } from '@/features/end-users/types'
-import IconifyIcon from '@/components/wrappers/IconifyIcon'
-import { StatusBadge, EmptyState } from '@/components/dashboard/DashboardComponents'
-import ApiErrorState from '@/components/common/ApiErrorState'
-import { ApiError } from '@/lib/apiClient'
+import { useAuth } from '@/context/useAuthContext'
+
+type ListState = {
+  items: EndUser[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+type Filters = Record<string, string>
+
+const PAGE_SIZES = [25, 50, 100]
+const SORT_OPTIONS = [
+  { value: 'createdAt:desc', label: 'Newest first' },
+  { value: 'createdAt:asc', label: 'Oldest first' },
+  { value: 'lastLoginAt:desc', label: 'Last login newest' },
+  { value: 'lastLoginAt:asc', label: 'Last login oldest' },
+  { value: 'failedLoginCount:desc', label: 'Highest failed login count' },
+  { value: 'riskScore:desc', label: 'Highest risk score' },
+  { value: 'country:asc', label: 'Country A-Z' },
+  { value: 'status:asc', label: 'Status' },
+  { value: 'emailVerifiedAt:desc', label: 'Verification status' },
+]
+
+const SAVED_SEGMENTS: Record<string, Filters> = {
+  unverified: { emailVerified: 'false' },
+  suspended: { status: 'SUSPENDED' },
+  highRisk: { riskLevel: 'HIGH' },
+  neverLoggedIn: { loginActivity: 'never' },
+  noPhone: { hasPhone: 'false' },
+  bangladesh: { country: 'Bangladesh' },
+  recent: { createdFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() },
+  suspicious: { loginActivity: '7d', riskLevel: 'HIGH' },
+}
+
+function readParams(searchParams: ReturnType<typeof useSearchParams>) {
+  const current: Filters = {}
+  searchParams.forEach((value, key) => {
+    current[key] = value
+  })
+  return current
+}
+
+function buildQuery(filters: Filters) {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.set(key, value)
+  })
+  return params.toString()
+}
+
+function chipLabel(key: string, value: string) {
+  const names: Record<string, string> = {
+    q: 'Search',
+    status: 'Status',
+    country: 'Country',
+    emailVerified: 'Email verified',
+    phoneVerified: 'Phone verified',
+    hasEmail: 'Email',
+    hasPhone: 'Phone',
+    loginActivity: 'Login activity',
+    riskLevel: 'Risk',
+    sortBy: 'Sort',
+    pageSize: 'Page size',
+  }
+  return `${names[key] ?? key}: ${value}`
+}
 
 export default function EndUsersPage() {
-  const [users, setUsers] = useState<EndUser[]>([])
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const filters = useMemo(() => readParams(searchParams), [searchParams])
+  const [data, setData] = useState<ListState>({ items: [], total: 0, page: 1, pageSize: 50, totalPages: 1 })
   const [loading, setLoading] = useState(true)
-  const [pageError, setPageError] = useState<{ message: string; status?: number } | null>(null)
-
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
-
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [hasNextPage, setHasNextPage] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-
+  const [error, setError] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [selectedUser, setSelectedUser] = useState<EndUserDetail | null>(null)
-  const [selectedPresence, setSelectedPresence] = useState<EndUserPresence | null>(null)
-  const [showDrawer, setShowDrawer] = useState(false)
-  const [drawerLoading, setDrawerLoading] = useState(false)
-  const [auditLogs, setAuditLogs] = useState<any[]>([])
-  const [auditNextCursor, setAuditNextCursor] = useState<string | null>(null)
-  const [auditHasNextPage, setAuditHasNextPage] = useState(false)
-  const [auditLoadingMore, setAuditLoadingMore] = useState(false)
-  const [sessionLogs, setSessionLogs] = useState<any[]>([])
-  const [sessionNextCursor, setSessionNextCursor] = useState<string | null>(null)
-  const [sessionHasNextPage, setSessionHasNextPage] = useState(false)
-  const [sessionLoadingMore, setSessionLoadingMore] = useState(false)
-
-  const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<{ targetId: string; nextStatus: string; title: string; message: string } | null>(null)
+  const [presence, setPresence] = useState<EndUserPresence | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
+  const [savedSegment, setSavedSegment] = useState('')
+  const { admin } = useAuth()
 
-  const loadUsers = async (opts: { cursor?: string; append?: boolean } = {}) => {
-    if (opts.append) setLoadingMore(true)
-    else {
-      setLoading(true)
-      setPageError(null)
-    }
+  const hasPermission = (permission: string) => {
+    const perms = admin?.permissions ?? []
+    return perms.includes(permission) || (admin?.roles ?? []).some((role) => ['admin', 'super_admin'].includes(role.toLowerCase()))
+  }
+
+  const currentPage = Number(filters.page || '1')
+  const pageSize = Number(filters.pageSize || '50')
+
+  const load = async () => {
+    setLoading(true)
+    setError(null)
     try {
       const response = await endUsersApi.listEndUsers({
-        q: searchTerm || undefined,
-        status: statusFilter !== 'ALL' ? statusFilter : undefined,
-        limit: 25,
-        cursor: opts.cursor,
+        q: filters.q,
+        status: filters.status,
+        country: filters.country,
+        state: filters.state,
+        city: filters.city,
+        timezone: filters.timezone,
+        registrationSource: filters.registrationSource,
+        emailVerified: filters.emailVerified as any,
+        phoneVerified: filters.phoneVerified as any,
+        hasEmail: filters.hasEmail as any,
+        hasPhone: filters.hasPhone as any,
+        loginActivity: filters.loginActivity as any,
+        riskLevel: filters.riskLevel as any,
+        createdFrom: filters.createdFrom,
+        createdTo: filters.createdTo,
+        lastLoginFrom: filters.lastLoginFrom,
+        lastLoginTo: filters.lastLoginTo,
+        lastPasswordChangedFrom: filters.lastPasswordChangedFrom,
+        lastPasswordChangedTo: filters.lastPasswordChangedTo,
+        externalRefId: filters.externalRefId,
+        email: filters.email,
+        phone: filters.phone,
+        username: filters.username,
+        userId: filters.userId,
+        sortBy: filters.sortBy,
+        sortOrder: (filters.sortOrder as 'asc' | 'desc') || 'desc',
+        page: currentPage,
+        pageSize,
       })
-      if (response.success && response.data) {
-        const items = response.data.items || []
-        setUsers((prev) => (opts.append ? [...prev, ...items] : items))
-        setNextCursor(response.data.pagination?.nextCursor ?? null)
-        setHasNextPage(Boolean(response.data.pagination?.hasNextPage))
-      }
-    } catch (error: any) {
-      console.error('Failed to load end users:', error)
-      if (error instanceof ApiError) {
-        if (error.status === 403) {
-          setPageError({ message: 'You do not have permission to view end users.', status: error.status })
-        } else {
-          setPageError({ message: error.message || 'Unable to load end users.', status: error.status })
-        }
+      const pageData = response.data ?? {}
+      setData({
+        items: pageData.items ?? [],
+        total: pageData.total ?? 0,
+        page: pageData.page ?? currentPage,
+        pageSize: pageData.pageSize ?? pageSize,
+        totalPages: pageData.totalPages ?? 1,
+      })
+    } catch (err: any) {
+      console.error('Failed to load end users:', err)
+      if (err instanceof ApiError && err.status === 403) {
+        setError('You do not have permission to view end users.')
       } else {
-        setPageError({ message: 'Unable to load end users.' })
+        setError(err?.message || 'Unable to load end users.')
       }
+      setData({ items: [], total: 0, page: currentPage, pageSize, totalPages: 1 })
     } finally {
       setLoading(false)
-      setLoadingMore(false)
     }
   }
 
   useEffect(() => {
-    loadUsers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, statusFilter])
+    load()
+  }, [searchParams.toString()])
 
-  const handleOpenDrawer = async (user: EndUser) => {
-    setShowDrawer(true)
-    setDrawerLoading(true)
-    setSelectedUser(user)
-    setSelectedPresence(null)
-    setAuditLogs([])
-    setSessionLogs([])
-    setAuditNextCursor(null)
-    setSessionNextCursor(null)
-    setAuditHasNextPage(false)
-    setSessionHasNextPage(false)
+  const updateFilters = (patch: Filters) => {
+    const next = new URLSearchParams(searchParams.toString())
+    Object.entries(patch).forEach(([key, value]) => {
+      if (!value) next.delete(key)
+      else next.set(key, value)
+    })
+    next.delete('page')
+    router.replace(`/end-users?${next.toString()}`)
+  }
+
+  const clearFilters = () => router.replace('/end-users')
+
+  const openUser = async (user: EndUser) => {
+    setDetailLoading(true)
+    setSelectedUser(null)
+    setPresence(null)
     try {
       const [detailResponse, presenceResponse] = await Promise.all([
         endUsersApi.getEndUser(user.id),
-        endUsersApi.getPresence(user.id).catch((error) => {
-          console.warn('Presence data unavailable:', error)
-          return null
-        }),
+        endUsersApi.getPresence(user.id).catch(() => null),
       ])
-      if (detailResponse.success) {
-        setSelectedUser(detailResponse.user)
-        setAuditLogs(detailResponse.user.recentAuditLogs || [])
-        setSessionLogs(detailResponse.user.recentSessions || [])
-      }
-      if (presenceResponse?.success) {
-        setSelectedPresence(presenceResponse.presence)
-      }
-    } catch (error) {
-      console.error('Failed to load end user detail:', error)
-      toast.error('Failed to load user detail.')
+      if (detailResponse.success) setSelectedUser(detailResponse.user)
+      if (presenceResponse?.success) setPresence(presenceResponse.presence)
+    } catch (err) {
+      toast.error('Failed to load user details.')
     } finally {
-      setDrawerLoading(false)
+      setDetailLoading(false)
     }
   }
 
-  const loadMoreAuditLogs = async () => {
-    if (!selectedUser || !auditHasNextPage) return
-    setAuditLoadingMore(true)
-    try {
-      const response = await endUsersApi.getAuditLogs(selectedUser.id, { limit: 25, cursor: auditNextCursor ?? undefined })
-      const data = response.data ?? {}
-      const items = data.items ?? []
-      setAuditLogs((prev) => [...prev, ...items])
-      setAuditNextCursor(data.nextCursor ?? null)
-      setAuditHasNextPage(Boolean(data.hasNextPage))
-    } finally {
-      setAuditLoadingMore(false)
-    }
-  }
-
-  const loadMoreSessions = async () => {
-    if (!selectedUser || !sessionHasNextPage) return
-    setSessionLoadingMore(true)
-    try {
-      const response = await endUsersApi.getSessions(selectedUser.id, { limit: 25, cursor: sessionNextCursor ?? undefined })
-      const data = response.data ?? {}
-      const items = data.items ?? []
-      setSessionLogs((prev) => [...prev, ...items])
-      setSessionNextCursor(data.nextCursor ?? null)
-      setSessionHasNextPage(Boolean(data.hasNextPage))
-    } finally {
-      setSessionLoadingMore(false)
-    }
-  }
-
-  const handleOpenConfirm = (targetId: string, nextStatus: string, title: string, message: string) => {
-    setConfirmAction({ targetId, nextStatus, title, message })
-    setShowConfirmModal(true)
-  }
-
-  const executeStatusChange = async () => {
-    if (!confirmAction) return
+  const changeStatus = async (user: EndUser, status: EndUser['status']) => {
     setActionLoading(true)
     try {
-      const res = await endUsersApi.updateStatus(confirmAction.targetId, confirmAction.nextStatus)
+      const res = await endUsersApi.updateStatus(user.id, status)
       if (res.success) {
-        toast.success(`User status set to ${confirmAction.nextStatus}.`)
-        setUsers((prev) => prev.map((u) => (u.id === confirmAction.targetId ? { ...u, status: confirmAction.nextStatus as EndUser['status'] } : u)))
-        if (selectedUser?.id === confirmAction.targetId) {
-          setSelectedUser({ ...selectedUser, status: confirmAction.nextStatus as EndUser['status'] })
-        }
+        toast.success(`User status updated to ${status}.`)
+        load()
+        if (selectedUser?.id === user.id) setSelectedUser({ ...selectedUser, status })
       }
-    } catch (error: any) {
-      console.error('Failed to update user status:', error)
-      toast.error(error?.message || 'Failed to update user status.')
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update user status.')
     } finally {
       setActionLoading(false)
-      setShowConfirmModal(false)
-      setConfirmAction(null)
     }
   }
+
+  const activeChips = Object.entries(filters).filter(([key, value]) => !['page', 'pageSize'].includes(key) && value)
 
   return (
     <div className="container-fluid py-4">
-      <div className="d-flex align-items-center justify-content-between mb-4">
+      <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
         <div>
           <h4 className="fw-bold text-dark mb-1">End Users</h4>
-          <p className="text-muted mb-0 fs-13">Platform customer accounts — separate from internal admin operators.</p>
+          <p className="text-muted mb-0 fs-13">Server-side search, filters, sorting, and pagination for platform users.</p>
+        </div>
+        <div className="d-flex flex-wrap align-items-center justify-content-end gap-2">
+          <Button variant="primary" size="sm" onClick={() => setShowAdvanced(true)}>
+            <IconifyIcon icon="solar:filters-bold-duotone" className="fs-16 me-1" />
+            Advanced Filters
+          </Button>
+          <Button variant="outline-secondary" size="sm" onClick={() => load()} disabled={loading}>
+            <IconifyIcon icon="solar:restart-bold-duotone" className={loading ? 'spin fs-16 me-1' : 'fs-16 me-1'} />
+            Refresh
+          </Button>
         </div>
       </div>
 
-      <Card className="border-0 shadow-sm mb-3">
-        <Card.Body>
-          <Row className="g-2">
-            <Col md={6} lg={4}>
-              <Form.Control
-                type="search"
-                placeholder="Search by email, username, name, or phone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </Col>
-            <Col md={4} lg={3}>
-              <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="SUSPENDED">Suspended</option>
-                <option value="PENDING_VERIFICATION">Pending Verification</option>
-                <option value="DELETED">Deleted</option>
-              </Form.Select>
-            </Col>
-          </Row>
+      <Card className="border-0 shadow-sm mb-2">
+        <Card.Body className="p-3 p-lg-3">
+          <div className="d-grid gap-2">
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <div style={{ flex: '1 1 420px', minWidth: 360 }}>
+                <Form.Control
+                  size="sm"
+                  type="search"
+                  className="ps-4"
+                  placeholder="Global search: email, phone, username, name, user ID, external reference..."
+                  value={filters.q || ''}
+                  onChange={(e) => updateFilters({ q: e.target.value })}
+                />
+              </div>
+              <div style={{ flex: '0 0 170px', minWidth: 160 }}>
+                <Form.Select size="sm" value={filters.status || ''} onChange={(e) => updateFilters({ status: e.target.value })}>
+                  <option value="">All statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="PENDING_VERIFICATION">Pending verification</option>
+                  <option value="SUSPENDED">Suspended</option>
+                  <option value="DELETED">Deleted</option>
+                </Form.Select>
+              </div>
+              <div style={{ flex: '0 0 170px', minWidth: 160 }}>
+                <Form.Control size="sm" placeholder="Country" value={filters.country || ''} onChange={(e) => updateFilters({ country: e.target.value })} />
+              </div>
+              <div style={{ flex: '0 0 180px', minWidth: 170 }}>
+                <Form.Control size="sm" type="date" value={filters.createdFrom || ''} onChange={(e) => updateFilters({ createdFrom: e.target.value })} />
+              </div>
+              <div className="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
+                <Button variant="outline-danger" size="sm" onClick={clearFilters}>
+                  <IconifyIcon icon="solar:close-circle-bold-duotone" className="fs-16 me-1" />
+                  Clear
+                </Button>
+              </div>
+            </div>
+
+            <div className="d-flex flex-wrap align-items-center gap-2">
+              <div style={{ flex: '0 0 210px', minWidth: 180 }}>
+                <Form.Select size="sm" value={filters.sortBy && filters.sortOrder ? `${filters.sortBy}:${filters.sortOrder}` : 'createdAt:desc'} onChange={(e) => {
+                  const [sortBy, sortOrder] = e.target.value.split(':')
+                  updateFilters({ sortBy, sortOrder })
+                }}>
+                  {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </Form.Select>
+              </div>
+              <div style={{ flex: '0 0 140px', minWidth: 130 }}>
+                <Form.Select size="sm" value={String(pageSize)} onChange={(e) => updateFilters({ pageSize: e.target.value, page: '1' })}>
+                  {PAGE_SIZES.map((size) => <option key={size} value={size}>{size} per page</option>)}
+                </Form.Select>
+              </div>
+              <div className="ms-auto d-flex align-items-center gap-2 flex-shrink-0">
+                <Badge bg="soft-secondary" className="text-secondary px-3 py-2 d-inline-flex align-items-center gap-1">
+                  <IconifyIcon icon="solar:users-group-rounded-bold-duotone" className="fs-14" />
+                  {data.total.toLocaleString()} users
+                </Badge>
+              </div>
+            </div>
+
+            {activeChips.length > 0 && (
+              <div className="d-flex flex-wrap gap-2">
+                {activeChips.map(([key, value]) => (
+                  <Badge key={key} bg="soft-primary" className="text-primary">{chipLabel(key, value)}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
         </Card.Body>
       </Card>
 
-      {pageError ? (
-        <ApiErrorState message={pageError.message} status={pageError.status} onRetry={() => loadUsers()} />
+      {error ? (
+        <ApiErrorState message={error} onRetry={load} />
       ) : (
         <Card className="border-0 shadow-sm">
           <Card.Body className="p-0">
             {loading ? (
-              <div className="text-center py-5">
-                <Spinner animation="border" variant="primary" />
-              </div>
-            ) : users.length === 0 ? (
-              <EmptyState message="No end users found." icon="solar:users-group-rounded-bold-duotone" />
+              <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
+            ) : data.items.length === 0 ? (
+              <EmptyState message="No end users match the current filters." icon="solar:users-group-rounded-bold-duotone" />
             ) : (
               <>
-                <Table hover responsive className="mb-0 align-middle">
+                <Table responsive hover className="mb-0 align-middle">
                   <thead className="bg-light">
                     <tr>
                       <th className="px-4">User</th>
                       <th>Phone</th>
+                      <th>Country</th>
                       <th>Status</th>
                       <th>Verification</th>
-                      <th>Created</th>
+                      <th>Source</th>
+                      <th>Risk</th>
                       <th>Last Login</th>
+                      <th>Created</th>
                       <th className="text-end px-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user) => (
+                    {data.items.map((user) => (
                       <tr key={user.id}>
                         <td className="px-4">
                           <div className="d-flex align-items-center gap-2">
-                            <div
-                              className="bg-soft-primary text-primary rounded-circle d-flex align-items-center justify-content-center fw-semibold fs-13"
-                              style={{ width: '36px', height: '36px' }}
-                            >
-                              {(user.displayName || user.username || user.email).substring(0, 2).toUpperCase()}
+                            <div className="bg-soft-primary text-primary rounded-circle d-flex align-items-center justify-content-center fw-semibold fs-13" style={{ width: 36, height: 36 }}>
+                              {(user.displayName || user.username || user.email).slice(0, 2).toUpperCase()}
                             </div>
                             <div className="d-flex flex-column">
-                              <span className="fw-semibold text-dark fs-14">{user.displayName || user.username || '—'}</span>
+                              <span className="fw-semibold text-dark fs-14">{user.displayName || user.username || 'Unnamed'}</span>
                               <span className="text-muted fs-11">{user.email}</span>
+                              <span className="text-muted fs-11">{user.id}</span>
                             </div>
                           </div>
                         </td>
+                        <td className="text-secondary fs-13">{user.phone || '—'}</td>
+                        <td className="text-secondary fs-13">{user.country || '—'}</td>
+                        <td><StatusBadge status={user.status} /></td>
                         <td>
-                          <span className="text-secondary fs-13">{user.phone || '—'}</span>
-                        </td>
-                        <td>
-                          <StatusBadge status={user.status} />
-                        </td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <Badge bg={user.emailVerifiedAt ? 'soft-success' : 'soft-secondary'} className={user.emailVerifiedAt ? 'text-success' : 'text-secondary'}>
-                              Email {user.emailVerifiedAt ? '✓' : '—'}
-                            </Badge>
-                            <Badge bg={user.phoneVerifiedAt ? 'soft-success' : 'soft-secondary'} className={user.phoneVerifiedAt ? 'text-success' : 'text-secondary'}>
-                              Phone {user.phoneVerifiedAt ? '✓' : '—'}
-                            </Badge>
+                          <div className="d-flex flex-wrap gap-1">
+                            <Badge bg={user.emailVerifiedAt ? 'soft-success' : 'soft-secondary'} className={user.emailVerifiedAt ? 'text-success' : 'text-secondary'}>Email {user.emailVerifiedAt ? '✓' : '—'}</Badge>
+                            <Badge bg={user.phoneVerifiedAt ? 'soft-success' : 'soft-secondary'} className={user.phoneVerifiedAt ? 'text-success' : 'text-secondary'}>Phone {user.phoneVerifiedAt ? '✓' : '—'}</Badge>
                           </div>
                         </td>
-                        <td>
-                          <span className="text-secondary fs-13">{new Date(user.createdAt).toLocaleDateString()}</span>
-                        </td>
-                        <td>
-                          <span className="text-secondary fs-13">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}</span>
-                        </td>
+                        <td className="text-secondary fs-13">{user.registrationSource || '—'}</td>
+                        <td><Badge bg={user.riskScore && user.riskScore >= 80 ? 'danger' : user.riskScore && user.riskScore >= 50 ? 'warning' : 'success'}>{user.riskScore ?? 0}</Badge></td>
+                        <td className="text-secondary fs-13">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never'}</td>
+                        <td className="text-secondary fs-13">{new Date(user.createdAt).toLocaleDateString()}</td>
                         <td className="text-end px-4">
-                          <div className="d-flex justify-content-end gap-1">
-                            <Button variant="link" size="sm" className="p-0 text-primary me-2" onClick={() => handleOpenDrawer(user)}>
-                              View
-                            </Button>
-                            {user.status === 'ACTIVE' ? (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="p-0 text-danger"
-                                disabled={user.isLastSuperAdmin}
-                                title={user.isLastSuperAdmin ? 'Cannot suspend the last active super admin.' : undefined}
-                                onClick={() =>
-                                  handleOpenConfirm(
-                                    user.id,
-                                    'SUSPENDED',
-                                    'Suspend User?',
-                                    `Suspend ${user.displayName || user.email}? They will be signed out and unable to log back in until reactivated.`
-                                  )
-                                }
-                              >
+                          <div className="d-flex justify-content-end gap-1 flex-wrap">
+                            {hasPermission('end_users.view_detail') && (
+                              <Button variant="link" size="sm" className="p-0 d-inline-flex align-items-center gap-1" onClick={() => openUser(user)}>
+                                <IconifyIcon icon="solar:eye-bold-duotone" className="fs-14" />
+                                View
+                              </Button>
+                            )}
+                            {hasPermission('end_users.update_status') && (
+                              <Button variant="link" size="sm" className="p-0 text-danger d-inline-flex align-items-center gap-1" onClick={() => changeStatus(user, 'SUSPENDED')} disabled={actionLoading}>
+                                <IconifyIcon icon="solar:pause-circle-bold-duotone" className="fs-14" />
                                 Suspend
                               </Button>
-                            ) : user.status === 'SUSPENDED' ? (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="p-0 text-success"
-                                onClick={() =>
-                                  handleOpenConfirm(user.id, 'ACTIVE', 'Activate User?', `Restore active access for ${user.displayName || user.email}?`)
-                                }
-                              >
-                                Activate
+                            )}
+                            {hasPermission('end_users.update_status') && (
+                              <Button variant="link" size="sm" className="p-0 text-success d-inline-flex align-items-center gap-1" onClick={() => changeStatus(user, 'ACTIVE')} disabled={actionLoading}>
+                                <IconifyIcon icon="solar:check-circle-bold-duotone" className="fs-14" />
+                                Unsuspend
                               </Button>
-                            ) : null}
+                            )}
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </Table>
-                {hasNextPage && (
-                  <div className="text-center py-3 border-top">
-                    <Button variant="outline-primary" size="sm" disabled={loadingMore} onClick={() => loadUsers({ cursor: nextCursor || undefined, append: true })}>
-                      {loadingMore ? <Spinner animation="border" size="sm" className="me-1" /> : null}
-                      Load More
-                    </Button>
+                <div className="d-flex align-items-center justify-content-between px-4 py-3 border-top">
+                  <div className="text-muted fs-13">Page {data.page} of {data.totalPages}</div>
+                  <div className="d-flex gap-2">
+                    <Button variant="outline-secondary" size="sm" disabled={data.page <= 1} onClick={() => updateFilters({ page: String(data.page - 1) })}>Previous</Button>
+                    <Button variant="outline-secondary" size="sm" disabled={data.page >= data.totalPages} onClick={() => updateFilters({ page: String(data.page + 1) })}>Next</Button>
                   </div>
-                )}
+                </div>
               </>
             )}
           </Card.Body>
         </Card>
       )}
 
-      {/* DETAIL DRAWER */}
-      <Offcanvas show={showDrawer} onHide={() => setShowDrawer(false)} placement="end" style={{ width: '450px' }}>
-        <Offcanvas.Header closeButton className="border-bottom">
-          <Offcanvas.Title className="fw-bold">User Profile</Offcanvas.Title>
+      <Offcanvas show={showAdvanced} onHide={() => setShowAdvanced(false)} placement="end" style={{ width: 540 }}>
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title className="fw-bold">Advanced Filters</Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          {drawerLoading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" variant="primary" />
+          <div className="d-grid gap-3">
+            <section>
+              <div className="fw-semibold mb-2">Identity</div>
+              <Row className="g-2">
+                {['userId', 'username', 'email', 'phone', 'externalRefId'].map((field) => (
+                  <Col md={6} key={field}><Form.Control placeholder={field} value={filters[field] || ''} onChange={(e) => updateFilters({ [field]: e.target.value })} /></Col>
+                ))}
+              </Row>
+            </section>
+            <section>
+              <div className="fw-semibold mb-2">Status and Contact</div>
+              <Row className="g-2">
+                <Col md={6}><Form.Select value={filters.hasEmail || ''} onChange={(e) => updateFilters({ hasEmail: e.target.value })}><option value="">Email presence</option><option value="true">Has email</option><option value="false">Missing email</option></Form.Select></Col>
+                <Col md={6}><Form.Select value={filters.hasPhone || ''} onChange={(e) => updateFilters({ hasPhone: e.target.value })}><option value="">Phone presence</option><option value="true">Has phone</option><option value="false">Missing phone</option></Form.Select></Col>
+                <Col md={6}><Form.Select value={filters.emailVerified || ''} onChange={(e) => updateFilters({ emailVerified: e.target.value })}><option value="">Email verification</option><option value="true">Verified</option><option value="false">Not verified</option></Form.Select></Col>
+                <Col md={6}><Form.Select value={filters.phoneVerified || ''} onChange={(e) => updateFilters({ phoneVerified: e.target.value })}><option value="">Phone verification</option><option value="true">Verified</option><option value="false">Not verified</option></Form.Select></Col>
+              </Row>
+            </section>
+            <section>
+              <div className="fw-semibold mb-2">Location and Activity</div>
+              <Row className="g-2">
+                {['country', 'state', 'city', 'timezone', 'registrationSource'].map((field) => (
+                  <Col md={6} key={field}><Form.Control placeholder={field} value={filters[field] || ''} onChange={(e) => updateFilters({ [field]: e.target.value })} /></Col>
+                ))}
+                <Col md={6}><Form.Select value={filters.loginActivity || ''} onChange={(e) => updateFilters({ loginActivity: e.target.value })}><option value="">Login activity</option><option value="never">Never logged in</option><option value="today">Logged in today</option><option value="7d">Last 7 days</option><option value="30d">Inactive for 30 days</option><option value="90d">Inactive for 90 days</option><option value="180d">Inactive for 180 days</option></Form.Select></Col>
+                <Col md={6}><Form.Select value={filters.riskLevel || ''} onChange={(e) => updateFilters({ riskLevel: e.target.value })}><option value="">Risk level</option><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option><option value="CRITICAL">Critical</option></Form.Select></Col>
+              </Row>
+            </section>
+            <section>
+              <div className="fw-semibold mb-2">Date Ranges</div>
+              <Row className="g-2">
+                {['createdFrom', 'createdTo', 'lastLoginFrom', 'lastLoginTo', 'lastPasswordChangedFrom', 'lastPasswordChangedTo'].map((field) => (
+                  <Col md={6} key={field}><Form.Control type="date" value={filters[field] || ''} onChange={(e) => updateFilters({ [field]: e.target.value })} /></Col>
+                ))}
+              </Row>
+            </section>
+            <section>
+              <div className="fw-semibold mb-2">Saved Segments</div>
+              <Form.Select value={savedSegment} onChange={(e) => {
+                setSavedSegment(e.target.value)
+                if (e.target.value && SAVED_SEGMENTS[e.target.value]) {
+                  updateFilters(SAVED_SEGMENTS[e.target.value])
+                }
+              }}>
+                <option value="">Choose a saved segment</option>
+                {Object.keys(SAVED_SEGMENTS).map((key) => <option key={key} value={key}>{key}</option>)}
+              </Form.Select>
+            </section>
+            <div className="d-flex gap-2">
+              <Button variant="outline-danger" onClick={clearFilters}>Clear all filters</Button>
+              <Button variant="primary" onClick={() => setShowAdvanced(false)}>Done</Button>
             </div>
-          ) : selectedUser ? (
-            <div>
-              <div className="text-center py-4 border-bottom mb-3">
-                <div
-                  className="bg-soft-primary text-primary rounded-circle d-flex align-items-center justify-content-center fw-semibold fs-20 mx-auto mb-3"
-                  style={{ width: '64px', height: '64px' }}
-                >
-                  {(selectedUser.displayName || selectedUser.username || selectedUser.email).substring(0, 2).toUpperCase()}
-                </div>
-                <h5 className="fw-bold mb-0">{selectedUser.displayName || selectedUser.username || 'Unnamed User'}</h5>
-                <p className="text-muted mb-2 fs-13">{selectedUser.email}</p>
-                <StatusBadge status={selectedUser.status} />
-              </div>
-
-              <Tabs defaultActiveKey="profile" className="mb-3">
-                <Tab eventKey="profile" title="Profile">
-                  <div className="d-flex flex-column gap-2 mt-2 fs-13">
-                    <Card className="border-0 bg-light mb-2">
-                      <Card.Body className="p-3">
-                        <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
-                          <Badge bg={selectedPresence?.onlineNow ? 'success' : 'secondary'}>
-                            {selectedPresence?.onlineNow ? 'Online Now' : 'Offline'}
-                          </Badge>
-                          <Badge bg={selectedPresence?.onlineNow ? 'soft-success' : 'soft-secondary'} className={selectedPresence?.onlineNow ? 'text-success' : 'text-secondary'}>
-                            {selectedPresence?.onlineNow || (selectedPresence?.lastSeenAt && Date.now() - new Date(selectedPresence.lastSeenAt).getTime() < 15 * 60 * 1000)
-                              ? 'Recently Active'
-                              : 'Not Recently Active'}
-                          </Badge>
-                        </div>
-                        <div className="d-flex justify-content-between">
-                          <span className="text-muted">Last Seen</span>
-                          <span className="fw-semibold">
-                            {selectedPresence?.lastSeenAt || selectedUser.lastSeenAt
-                              ? new Date(selectedPresence?.lastSeenAt || selectedUser.lastSeenAt || '').toLocaleString()
-                              : 'Never'}
-                          </span>
-                        </div>
-                        <div className="d-flex justify-content-between">
-                          <span className="text-muted">Last Login</span>
-                          <span className="fw-semibold">
-                            {selectedPresence?.lastLoginAt || selectedUser.lastLoginAt
-                              ? new Date(selectedPresence?.lastLoginAt || selectedUser.lastLoginAt || '').toLocaleString()
-                              : 'Never'}
-                          </span>
-                        </div>
-                        <div className="d-flex justify-content-between">
-                          <span className="text-muted">Active Sessions</span>
-                          <span className="fw-semibold">
-                            {selectedPresence?.activeSessions.active ?? selectedUser.recentSessions?.filter((session) => !session.revokedAt).length ?? 0}
-                          </span>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">Phone</span>
-                      <span className="fw-semibold">{selectedUser.phone || '—'}</span>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">Email Verified</span>
-                      <span className="fw-semibold">{selectedUser.emailVerifiedAt ? new Date(selectedUser.emailVerifiedAt).toLocaleDateString() : 'No'}</span>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">Phone Verified</span>
-                      <span className="fw-semibold">{selectedUser.phoneVerifiedAt ? new Date(selectedUser.phoneVerifiedAt).toLocaleDateString() : 'No'}</span>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">Created</span>
-                      <span className="fw-semibold">{new Date(selectedUser.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted">Last Login</span>
-                      <span className="fw-semibold">{selectedUser.lastLoginAt ? new Date(selectedUser.lastLoginAt).toLocaleDateString() : 'Never'}</span>
-                    </div>
-                    <div className="d-flex flex-column gap-2">
-                      <span className="text-muted">Apps Online</span>
-                      <div className="d-flex flex-wrap gap-1">
-                        {(selectedPresence?.appsOnline ?? []).length > 0 ? (
-                          selectedPresence!.appsOnline.map((app) => (
-                            <Badge key={app.clientId} bg="soft-info" className="text-info">
-                              {app.name}
-                            </Badge>
-                          ))
-                        ) : (
-                          <span className="fw-semibold">None</span>
-                        )}
-                      </div>
-                    </div>
-                    {selectedUser.oauthProviders && selectedUser.oauthProviders.length > 0 && (
-                      <div className="d-flex justify-content-between">
-                        <span className="text-muted">Connected Accounts</span>
-                        <span className="fw-semibold">{selectedUser.oauthProviders.join(', ')}</span>
-                      </div>
-                    )}
-                  </div>
-                </Tab>
-                <Tab eventKey="sessions" title="Sessions">
-                  <div className="mt-2">
-                    {sessionLogs.length > 0 ? (
-                      sessionLogs.map((s) => (
-                        <div key={s.id} className="border-bottom py-2 fs-12">
-                          <div className="fw-semibold">{s.ipAddress || 'Unknown IP'}</div>
-                          <div className="text-muted text-truncate">{s.userAgent || 'Unknown device'}</div>
-                          <div className="text-muted">{new Date(s.createdAt).toLocaleString()} {s.revokedAt ? '(revoked)' : ''}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState message="No recent sessions." icon="solar:bookmark-opened-bold-duotone" />
-                    )}
-                    {sessionHasNextPage && (
-                      <div className="text-center mt-3">
-                        <Button variant="outline-primary" size="sm" onClick={loadMoreSessions} disabled={sessionLoadingMore}>
-                          {sessionLoadingMore ? <Spinner animation="border" size="sm" className="me-1" /> : null}
-                          Load More
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Tab>
-                <Tab eventKey="activity" title="Activity">
-                  <div className="mt-2">
-                    {auditLogs.length > 0 ? (
-                      auditLogs.map((a) => (
-                        <div key={a.id} className="border-bottom py-2 fs-12">
-                          <div className="fw-semibold">{a.action}</div>
-                          <div className="text-muted">{new Date(a.createdAt).toLocaleString()}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <EmptyState message="No recent audit activity." icon="solar:document-text-bold-duotone" />
-                    )}
-                    {auditHasNextPage && (
-                      <div className="text-center mt-3">
-                        <Button variant="outline-primary" size="sm" onClick={loadMoreAuditLogs} disabled={auditLoadingMore}>
-                          {auditLoadingMore ? <Spinner animation="border" size="sm" className="me-1" /> : null}
-                          Load More
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </Tab>
-              </Tabs>
-
-              <div className="border-top pt-3 mt-3">
-                {selectedUser.status === 'ACTIVE' ? (
-                  <Button
-                    variant="outline-danger"
-                    className="w-100"
-                    disabled={selectedUser.isLastSuperAdmin}
-                    onClick={() =>
-                      handleOpenConfirm(selectedUser.id, 'SUSPENDED', 'Suspend User?', `Suspend ${selectedUser.displayName || selectedUser.email}?`)
-                    }
-                  >
-                    Suspend Account
-                  </Button>
-                ) : selectedUser.status === 'SUSPENDED' ? (
-                  <Button
-                    variant="outline-success"
-                    className="w-100"
-                    onClick={() => handleOpenConfirm(selectedUser.id, 'ACTIVE', 'Activate User?', `Restore access for ${selectedUser.displayName || selectedUser.email}?`)}
-                  >
-                    Activate Account
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+          </div>
         </Offcanvas.Body>
       </Offcanvas>
 
-      {/* CONFIRM MODAL */}
-      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
+      <Modal show={Boolean(selectedUser)} onHide={() => setSelectedUser(null)} size="xl" centered>
         <Modal.Header closeButton>
-          <Modal.Title className="fs-18">{confirmAction?.title}</Modal.Title>
+          <Modal.Title>User Details</Modal.Title>
         </Modal.Header>
-        <Modal.Body>{confirmAction?.message}</Modal.Body>
-        <Modal.Footer>
-          <Button variant="light" onClick={() => setShowConfirmModal(false)} disabled={actionLoading}>
-            Cancel
-          </Button>
-          <Button variant={confirmAction?.nextStatus === 'SUSPENDED' ? 'danger' : 'success'} onClick={executeStatusChange} disabled={actionLoading}>
-            {actionLoading ? <Spinner animation="border" size="sm" className="me-1" /> : <IconifyIcon icon="solar:check-circle-bold-duotone" className="me-1" />}
-            Confirm
-          </Button>
-        </Modal.Footer>
+        <Modal.Body>
+          {detailLoading ? (
+            <div className="text-center py-5"><Spinner animation="border" variant="primary" /></div>
+          ) : selectedUser ? (
+            <Row className="g-4">
+              <Col md={4}>
+                <Card className="border-0 bg-light h-100">
+                  <Card.Body>
+                    <div className="fw-semibold mb-2">Profile Summary</div>
+                    <div className="small text-muted">{selectedUser.displayName || selectedUser.username || selectedUser.email}</div>
+                    <div className="small">{selectedUser.email}</div>
+                    <div className="small">{selectedUser.phone || 'No phone'}</div>
+                    <div className="small">{selectedUser.status}</div>
+                    <div className="small">Country: {selectedUser.country || '—'}</div>
+                    <div className="small">Risk: {selectedUser.riskScore ?? 0}</div>
+                    <div className="small">Login IP: {selectedUser.lastLoginIp || '—'}</div>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={8}>
+                <div className="d-grid gap-3">
+                  <Card><Card.Body><div className="fw-semibold mb-2">Verification</div><div>Email: {selectedUser.emailVerifiedAt ? 'Verified' : 'Not verified'}</div><div>Phone: {selectedUser.phoneVerifiedAt ? 'Verified' : 'Not verified'}</div></Card.Body></Card>
+                  <Card><Card.Body><div className="fw-semibold mb-2">Sessions / Activity</div><div>Recent sessions: {selectedUser.recentSessions?.length ?? 0}</div><div>Recent audit logs: {selectedUser.recentAuditLogs?.length ?? 0}</div><div>Recent security events: {selectedUser.recentSecurityEvents?.length ?? 0}</div></Card.Body></Card>
+                  <Card><Card.Body><div className="fw-semibold mb-2">Sessions</div><div>Active sessions: {presence?.activeSessions.active ?? 0}</div><div>Apps online: {(presence?.appsOnline ?? []).map((a) => a.name).join(', ') || 'None'}</div></Card.Body></Card>
+                </div>
+              </Col>
+            </Row>
+          ) : null}
+        </Modal.Body>
       </Modal>
     </div>
   )

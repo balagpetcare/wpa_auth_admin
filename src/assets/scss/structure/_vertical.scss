@@ -7,7 +7,7 @@
 // .logo-dark / .logo-light is intentionally plain `flex`/`none` (no
 // Bootstrap utility classes on the elements themselves) so this toggle isn't
 // fought by `!important` utility classes elsewhere — see LogoBox.tsx.
-.logo-box {
+ .logo-box {
      position: sticky;
      overflow: hidden;
      white-space: nowrap;
@@ -16,61 +16,65 @@
      padding: 0 $main-nav-item-padding-x;
      display: flex;
      align-items: center;
+     justify-content: flex-start;
 
-     .logo-icon {
-          flex: 0 0 auto;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 34px;
-          height: 34px;
-          border-radius: 8px;
-          background: rgba(var(--#{$prefix}primary-rgb), 0.15);
-     }
-
-     .logo-text {
-          display: flex;
-          flex-direction: column;
-          margin-left: 0.6rem;
-          line-height: 1.2;
-          overflow: hidden;
-     }
-
-     .logo-title {
-          font-size: 15px;
-          font-weight: 700;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-     }
-
-     .logo-subtitle {
-          font-size: 10.5px;
-          font-weight: 600;
-          letter-spacing: 0.02em;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-     }
-
-     // UI polish fix: the default (non-dark, non-"brand") sidebar background
-     // is light (`$main-nav-bg: #f8f5f1`, see _theme-mode.scss), so the
-     // dark-text variant (.logo-light — light/body-colored text, appropriate
-     // for a light background) must be the one visible by default. The
-     // white-text variant (.logo-dark) is only readable on the actual dark
-     // sidebar background, so it's shown by the dark/brand override below
-     // instead. (Confusingly the "-dark"/"-light" suffixes describe the
-     // theme variant the logo was drawn for, not the background it sits on —
-     // kept as-is to match this project's existing naming rather than
-     // renaming across the codebase.)
-     .logo-light {
-          display: flex;
-          align-items: center;
-     }
-
-     .logo-dark {
+     .logo-full,
+     .logo-sm {
           display: none;
           align-items: center;
+          justify-content: center;
+          width: 100%;
+     }
+
+     .logo-image-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          min-width: 0;
+     }
+
+     .logo-full-wrap {
+          max-width: 168px;
+     }
+
+     .logo-sm-wrap {
+          max-width: 40px;
+     }
+
+     .logo-image {
+          width: auto;
+          height: auto;
+          object-fit: contain;
+     }
+
+     .logo-full-image {
+          max-width: 168px;
+          max-height: 46px;
+     }
+
+     .logo-sm-image {
+          width: 40px;
+          height: 40px;
+          object-fit: contain;
+     }
+
+     .logo-full-light,
+     .logo-full-dark {
+          align-items: center;
+     }
+
+     // Default light sidebar = dark logo art.
+     .logo-full-light {
+          display: flex;
+     }
+
+     .logo-full-dark {
+          display: none;
+     }
+
+     .logo-sm {
+          display: none;
      }
 }
 
@@ -278,14 +282,24 @@ html[data-menu-size="condensed"] {
                padding: 0;
                // background: $main-nav-bg;
 
-               .logo-text {
-                    display: none;
+               .logo-full {
+                    display: none !important;
                }
 
-               .logo-dark,
-               .logo-light {
-                    justify-content: center;
+               .logo-sm {
+                    display: flex !important;
                     width: 100%;
+               }
+
+               .logo-sm-wrap {
+                    max-width: 44px;
+                    width: 44px;
+                    height: 44px;
+               }
+
+               .logo-sm-image {
+                    width: 44px;
+                    height: 44px;
                }
           }
 
@@ -513,14 +527,24 @@ html[data-menu-size="sm-hover"] {
                justify-content: center;
                padding: 0;
 
-               .logo-text {
-                    display: none;
+               .logo-full {
+                    display: none !important;
                }
 
-               .logo-dark,
-               .logo-light {
-                    justify-content: center;
+               .logo-sm {
+                    display: flex !important;
                     width: 100%;
+               }
+
+               .logo-sm-wrap {
+                    max-width: 44px;
+                    width: 44px;
+                    height: 44px;
+               }
+
+               .logo-sm-image {
+                    width: 44px;
+                    height: 44px;
                }
           }
 
@@ -563,6 +587,14 @@ html[data-menu-size="sm-hover"] {
 
           .logo-box {
                text-align: left;
+
+               .logo-full {
+                    display: flex;
+               }
+
+               .logo-sm {
+                    display: none;
+               }
           }
 
           &:hover {
@@ -629,15 +661,19 @@ html[data-bs-theme="dark"],
 html[data-menu-color="dark"],
 html[data-menu-color="brand"] {
      .main-nav {
-          .logo-box {
-               .logo-light {
+         .logo-box {
+               .logo-full-light {
                     display: none;
                }
 
-               .logo-dark {
+               .logo-full-dark {
                     display: flex;
                }
-          }
+
+               .logo-sm {
+                    display: none;
+               }
+         }
      }
 }
 

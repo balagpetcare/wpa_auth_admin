@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Fragment, MouseEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { Collapse } from 'react-bootstrap'
+import { apiClient } from '@/lib/apiClient'
 
 const MenuItemWithChildren = ({ item, className, linkClassName, subMenuClassName, activeMenuItems, toggleMenu }: SubMenus) => {
   const [open, setOpen] = useState<boolean>(activeMenuItems!.includes(item.key))
@@ -105,6 +106,7 @@ import { useAuth } from '@/context/useAuthContext'
 const AppMenu = ({ menuItems }: AppMenuProps) => {
   const pathname = usePathname()
   const { admin } = useAuth()
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const hasPermission = useCallback((key: string): boolean => {
     if (!admin) return false
@@ -160,6 +162,21 @@ const AppMenu = ({ menuItems }: AppMenuProps) => {
     return true
   }, [admin])
 
+  useEffect(() => {
+    let active = true
+    apiClient.get('/admin/notifications/unread-count')
+      .then((payload: any) => {
+        const count = payload?.unreadCount ?? payload?.data?.unreadCount ?? 0
+        if (active && typeof count === 'number') setUnreadCount(count)
+      })
+      .catch(() => {
+        if (active) setUnreadCount(0)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
   const filteredMenuItems = useMemo(() => {
     // Filter out items the user doesn't have permission for
     const filtered = menuItems.filter((item) => {
@@ -177,6 +194,19 @@ const AppMenu = ({ menuItems }: AppMenuProps) => {
     })
   }, [menuItems, hasPermission])
 
+  const menuItemsWithNotificationBadge = useMemo(() => {
+    return filteredMenuItems.map((item) => {
+      if (item.key !== 'notifications' || unreadCount <= 0) return item
+      return {
+        ...item,
+        badge: {
+          variant: 'danger',
+          text: String(unreadCount > 99 ? '99+' : unreadCount),
+        },
+      }
+    })
+  }, [filteredMenuItems, unreadCount])
+
   const [activeMenuItems, setActiveMenuItems] = useState<Array<string>>([])
   const toggleMenu = (menuItem: MenuItemType, show: boolean) => {
     if (show) setActiveMenuItems([menuItem.key, ...findAllParent(filteredMenuItems, menuItem)])
@@ -191,10 +221,10 @@ const AppMenu = ({ menuItems }: AppMenuProps) => {
 
   const activeMenu = useCallback(() => {
     const trimmedURL = pathname?.replaceAll('', '')
-    const matchingMenuItem = getMenuItemFromURL(filteredMenuItems, trimmedURL)
+    const matchingMenuItem = getMenuItemFromURL(menuItemsWithNotificationBadge, trimmedURL)
 
     if (matchingMenuItem) {
-      const activeMt = findMenuItem(filteredMenuItems, matchingMenuItem.key)
+      const activeMt = findMenuItem(menuItemsWithNotificationBadge, matchingMenuItem.key)
       if (activeMt) {
         setActiveMenuItems([activeMt.key, ...findAllParent(filteredMenuItems, activeMt)])
       }
@@ -234,15 +264,15 @@ const AppMenu = ({ menuItems }: AppMenuProps) => {
         animateScroll()
       }
     }
-  }, [pathname, filteredMenuItems])
+  }, [pathname, menuItemsWithNotificationBadge])
 
   useEffect(() => {
-    if (filteredMenuItems && filteredMenuItems.length > 0) activeMenu()
-  }, [activeMenu, filteredMenuItems])
+    if (menuItemsWithNotificationBadge && menuItemsWithNotificationBadge.length > 0) activeMenu()
+  }, [activeMenu, menuItemsWithNotificationBadge])
 
   return (
     <ul className="navbar-nav" id="navbar-nav">
-      {(filteredMenuItems || []).map((item, idx) => {
+      {(menuItemsWithNotificationBadge || []).map((item, idx) => {
         return (
           <Fragment key={item.key + idx}>
             {item.isTitle ? (

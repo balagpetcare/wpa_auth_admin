@@ -6,20 +6,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Dropdown, DropdownHeader, DropdownItem, DropdownMenu, DropdownToggle } from 'react-bootstrap'
 import { useAuth } from '@/context/useAuthContext'
-import { getMediaUrl } from '@/lib/mediaUrl'
+import { resolveAvatarUrl } from '@/lib/avatarUrl'
 
 const ProfileDropdown = () => {
   const { admin, logout } = useAuth()
   const displayName = admin?.displayName || admin?.username || 'Admin'
-  const avatarSrc = getMediaUrl(admin?.avatarUrl)
-  const initials = (admin?.displayName || admin?.username || admin?.email || 'AD')
-    .slice(0, 2)
-    .toUpperCase()
-  // UI polish fix (docs/admin-panel-shell-ui-polish.md): previously this
-  // fell back to a bundled stock photo (avatar1) whenever the admin had no
-  // avatarUrl, which reads as a random person's photo rather than "this
-  // admin's identity". Now it only attempts to load an <Image> when a real
-  // avatarUrl exists; otherwise (or on load failure) it shows initials.
+  const avatarSrc = resolveAvatarUrl(admin?.avatarUrl)
+  const initials = (admin?.displayName || admin?.username || admin?.email || 'AD').slice(0, 2).toUpperCase()
   const [imgError, setImgError] = React.useState(false)
   const primaryRole = admin?.roles?.[0]
 
@@ -47,13 +40,7 @@ const ProfileDropdown = () => {
               height={32}
               src={avatarSrc}
               alt="avatar"
-              style={{ objectFit: 'cover' }}
-              // UI polish fix (docs/admin-panel-shell-ui-polish.md): Next's
-              // image optimizer (`/_next/image`) was intermittently 400'ing
-              // on this 32px thumbnail in this dev environment even though
-              // the source image itself loads fine and is an allowed remote
-              // pattern. It's a tiny fixed-size avatar, so there's nothing
-              // to gain from on-the-fly optimization — always skip it.
+              style={{ objectFit: 'cover', width: 32, height: 32, flexShrink: 0 }}
               unoptimized
               onError={() => setImgError(true)}
             />
