@@ -403,7 +403,7 @@ export default function ApplicationsPage() {
               <Form.Label>Allowed Redirect URIs (Comma separated)</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="http://localhost:3000/api/auth/callback, https://app.com/callback"
+                placeholder="http://localhost:5011/api/auth/callback, https://app.com/callback"
                 value={redirectUrisInput}
                 onChange={(e) => setRedirectUrisInput(e.target.value)}
               />
@@ -413,7 +413,7 @@ export default function ApplicationsPage() {
               <Form.Label>Allowed Origins (CORS - Comma separated)</Form.Label>
               <Form.Control
                 type="text"
-                placeholder="http://localhost:3000, https://app.com"
+                placeholder="http://localhost:5011, https://app.com"
                 value={allowedOriginsInput}
                 onChange={(e) => setAllowedOriginsInput(e.target.value)}
               />
