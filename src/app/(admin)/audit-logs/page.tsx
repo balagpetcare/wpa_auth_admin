@@ -12,7 +12,6 @@ import {
   Badge,
   Spinner,
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { auditLogsApi } from '@/features/audit-logs/api'
 import { AuditLog } from '@/features/audit-logs/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'

@@ -5,12 +5,13 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import * as yup from 'yup'
 import { Button, Card, Col, Row, Spinner } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import TextFormInput from '@/components/form/TextFormInput'
 import TextAreaFormInput from '@/components/form/TextAreaFormInput'
 import { accountApi } from '@/features/account/api'
 import { AccountProfile } from '@/features/account/types'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 interface PersonalInfoFormValues {
   fullName: string
@@ -67,9 +68,9 @@ const PersonalInfoCard = ({ account, onUpdated }: PersonalInfoCardProps) => {
     try {
       const res = await accountApi.updateMyAccount(values)
       onUpdated(res.account)
-      toast.success('Profile updated successfully.')
+      adminToast.success('Profile updated successfully.', 'Your profile changes were saved successfully.')
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update profile.')
+      adminToast.error('Failed to update profile.', getAdminErrorMessage(err, 'Please try again.'))
     }
   }
 

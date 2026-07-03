@@ -217,10 +217,25 @@ export const communicationApi = {
     return apiClient.post(`/admin/communication/delivery-logs/bulk-cancel`, { ids })
   },
 
-  async getProviderAuditLogs(limit = 50, cursor?: string): Promise<{ success: boolean; data: { items: ProviderAuditLog[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number } }> {
+  async getProviderAuditLogs(params?: {
+    limit?: number
+    cursor?: string
+    action?: string
+    providerId?: string
+    actorAdminId?: string
+    search?: string
+    createdFrom?: string
+    createdTo?: string
+  }): Promise<{ success: boolean; data: { items: ProviderAuditLog[]; nextCursor?: string | null; hasNextPage?: boolean; limit?: number; totalCount?: number } }> {
     const searchParams = new URLSearchParams()
-    searchParams.append('limit', String(limit))
-    if (cursor) searchParams.append('cursor', cursor)
+    searchParams.append('limit', String(params?.limit ?? 50))
+    if (params?.cursor) searchParams.append('cursor', params.cursor)
+    if (params?.action) searchParams.append('action', params.action)
+    if (params?.providerId) searchParams.append('providerId', params.providerId)
+    if (params?.actorAdminId) searchParams.append('actorAdminId', params.actorAdminId)
+    if (params?.search) searchParams.append('search', params.search)
+    if (params?.createdFrom) searchParams.append('createdFrom', params.createdFrom)
+    if (params?.createdTo) searchParams.append('createdTo', params.createdTo)
     return apiClient.get(`/admin/communication/provider-audit-logs?${searchParams.toString()}`)
   },
 

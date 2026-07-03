@@ -16,7 +16,6 @@ import {
   Badge,
   Alert
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { adminUsersApi } from '@/features/admin-users/api'
 import { AdminUser, AdminInvitation, Role } from '@/features/admin-users/types'
 import { useAuth } from '@/context/useAuthContext'
@@ -24,6 +23,8 @@ import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { StatusBadge, EmptyState } from '@/components/dashboard/DashboardComponents'
 import ApiErrorState from '@/components/common/ApiErrorState'
 import { ApiError } from '@/lib/apiClient'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 const normalizeAdminUsers = (response: any): AdminUser[] => {
   const candidates = [
@@ -206,7 +207,7 @@ export default function AdminUsersPage() {
         // defense-in-depth fallback in case this action is ever reachable
         // through another path. Backend enforcement (guardLastSuperAdmin in
         // admin.service.ts) remains the source of truth either way.
-        toast.error('Cannot suspend the last active super admin.')
+        adminToast.error('Cannot suspend the last active super admin.')
         setActionLoading(false)
         setShowConfirmModal(false)
         setConfirmAction(null)
@@ -216,7 +217,7 @@ export default function AdminUsersPage() {
       if (type === 'suspend') {
         const res = await adminUsersApi.updateUserStatus(targetId, 'SUSPENDED')
         if (res.success) {
-          toast.success('Admin user status set to SUSPENDED.')
+          adminToast.success('Admin user status set to SUSPENDED.', 'The administrator was suspended successfully.')
           loadUsers()
           if (selectedUser?.id === targetId) {
             setSelectedUser({ ...selectedUser, status: 'SUSPENDED' })
@@ -225,7 +226,7 @@ export default function AdminUsersPage() {
       } else if (type === 'activate') {
         const res = await adminUsersApi.updateUserStatus(targetId, 'ACTIVE')
         if (res.success) {
-          toast.success('Admin user status activated.')
+          adminToast.success('Admin user status activated.', 'The administrator account is active again.')
           loadUsers()
           if (selectedUser?.id === targetId) {
             setSelectedUser({ ...selectedUser, status: 'ACTIVE' })
@@ -234,34 +235,24 @@ export default function AdminUsersPage() {
       } else if (type === 'reset-pass') {
         const res = await adminUsersApi.resetPassword(targetId)
         if (res.success) {
-          toast.success(
-            <div>
-              <strong>Password Reset Successful!</strong>
-              {res.temporaryPassword && (
-                <div className="mt-2 p-2 bg-light border text-dark font-monospace text-center fs-14">
-                  Temp Pass: {res.temporaryPassword}
-                </div>
-              )}
-            </div>,
-            { autoClose: false }
-          )
+          adminToast.success('Password reset successful.', 'A temporary password was generated and must be shared securely.', { autoClose: false })
         }
       } else if (type === 'revoke-invite') {
         const res = await adminUsersApi.revokeInvitation(targetId)
         if (res.success) {
-          toast.success('Invitation revoked. It can no longer be accepted.')
+          adminToast.success('Invitation revoked.', 'The invitation can no longer be accepted.')
           loadInvitations()
         }
       } else if (type === 'resend-invite') {
         const res = await adminUsersApi.resendInvitation(targetId)
         if (res.success) {
-          toast.success('Invitation resent successfully.')
+          adminToast.success('Invitation resent successfully.', 'The invitation was sent again.')
           loadInvitations()
         }
       }
     } catch (error: any) {
       console.error('Action execution failed:', error)
-      toast.error(error?.message || 'Request failed.')
+      adminToast.error('Request failed.', getAdminErrorMessage(error, 'Please try again.'))
     } finally {
       setActionLoading(false)
       setShowConfirmModal(false)
@@ -272,7 +263,7 @@ export default function AdminUsersPage() {
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedInviteRoles.length === 0) {
-      toast.warning('Please assign at least one role to the invitee.')
+      adminToast.warning('Please assign at least one role to the invitee.')
       return
     }
     setActionLoading(true)
@@ -283,7 +274,7 @@ export default function AdminUsersPage() {
         message: inviteMessage || undefined,
       })
       if (response.success) {
-        toast.success(`Invitation successfully dispatched to ${inviteEmail}`)
+        adminToast.success(`Invitation successfully dispatched to ${inviteEmail}`, 'The invitation email was sent successfully.')
         setShowInviteModal(false)
         setInviteEmail('')
         setInviteMessage('')
@@ -293,16 +284,16 @@ export default function AdminUsersPage() {
       console.error('Invite failed:', error)
       if (error instanceof ApiError) {
         if (error.status === 403) {
-          toast.error('You do not have permission to send invitations.')
+          adminToast.error('You do not have permission to send invitations.')
         } else if (error.status === 404) {
-          toast.error('Invitation endpoint is unavailable.')
+          adminToast.error('Invitation endpoint is unavailable.')
         } else if (error.status === 501) {
-          toast.error('Invitation sending is not implemented in the backend yet.')
+          adminToast.error('Invitation sending is not implemented in the backend yet.')
         } else {
-          toast.error(error.message || 'Failed to issue administrative invitation.')
+          adminToast.error('Failed to issue administrative invitation.', error.message || 'Please try again.')
         }
       } else {
-        toast.error('Failed to issue administrative invitation.')
+        adminToast.error('Failed to issue administrative invitation.')
       }
     } finally {
       setActionLoading(false)
@@ -341,7 +332,7 @@ export default function AdminUsersPage() {
       })
 
       if (isSelf && removingSuperAdmin) {
-        toast.error('Security restriction: You cannot revoke your own administrative privileges.')
+        adminToast.error('Security restriction: You cannot revoke your own administrative privileges.')
         setActionLoading(false)
         return
       }
@@ -355,7 +346,7 @@ export default function AdminUsersPage() {
         await adminUsersApi.removeRoleFromUser(selectedUser.id, rId)
       }
 
-      toast.success('Administrator roles updated successfully.')
+      adminToast.success('Administrator roles updated successfully.', 'The administrator permissions were saved successfully.')
       setEditingRoles(false)
       loadUsers()
 
@@ -364,7 +355,7 @@ export default function AdminUsersPage() {
       setSelectedUser({ ...selectedUser, roles: updatedUserRoles })
     } catch (error: any) {
       console.error('Failed to update roles:', error)
-      toast.error(error?.message || 'Error updating administrative privileges.')
+      adminToast.error('Error updating administrative privileges.', getAdminErrorMessage(error, 'Please try again.'))
     } finally {
       setActionLoading(false)
     }

@@ -5,7 +5,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { Row, Col, Card, Table, Button, Form, Modal, Spinner, Badge, Alert } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { communicationApi, CreateRoutingRuleInput } from '@/features/communication/api'
 import { RoutingRule, CommProvider } from '@/features/communication/types'
 import { applicationsApi } from '@/features/applications/api'
@@ -14,6 +13,8 @@ import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { EmptyState } from '@/components/dashboard/DashboardComponents'
 import ApiErrorState from '@/components/common/ApiErrorState'
 import { ApiError } from '@/lib/apiClient'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 const PURPOSES = ['OTP', 'AUTH', 'PASSWORD_RESET', 'TRANSACTIONAL', 'ALERT']
 
@@ -101,16 +102,16 @@ export default function CommunicationRoutingRulesPage() {
     try {
       if (editingRule) {
         await communicationApi.updateRoutingRule(editingRule.id, form)
-        toast.success('Routing rule updated.')
+        adminToast.success('Routing rule updated.', 'The routing rule changes were saved successfully.')
       } else {
         await communicationApi.createRoutingRule(form)
-        toast.success('Routing rule created.')
+        adminToast.success('Routing rule created.', 'The routing rule was created successfully.')
       }
       setShowModal(false)
-      load()
+      void load()
     } catch (error: any) {
       console.error('Failed to save routing rule:', error)
-      toast.error(error?.message || 'Failed to save routing rule.')
+      adminToast.error('Failed to save routing rule.', getAdminErrorMessage(error, 'Please review the form and try again.'))
     } finally {
       setSaving(false)
     }
@@ -120,11 +121,11 @@ export default function CommunicationRoutingRulesPage() {
     if (!window.confirm('Delete this routing rule?')) return
     try {
       await communicationApi.deleteRoutingRule(rule.id)
-      toast.success('Routing rule deleted.')
-      load()
+      adminToast.success('Routing rule deleted.', 'The routing rule was removed successfully.')
+      void load()
     } catch (error: any) {
       console.error('Failed to delete routing rule:', error)
-      toast.error(error?.message || 'Failed to delete routing rule.')
+      adminToast.error('Failed to delete routing rule.', getAdminErrorMessage(error, 'Please try again.'))
     }
   }
 

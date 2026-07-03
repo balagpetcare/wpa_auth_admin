@@ -13,12 +13,13 @@ import {
   Spinner,
   Alert
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { communicationApi } from '@/features/communication/api'
 import { sessionsApi } from '@/features/sessions/api'
 import { CommProvider } from '@/features/communication/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { StatusBadge, ErrorState, EmptyState } from '@/components/dashboard/DashboardComponents'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 export default function SmsOtpSettingsPage() {
   const [providers, setProviders] = useState<CommProvider[]>([])
@@ -73,14 +74,14 @@ export default function SmsOtpSettingsPage() {
     try {
       const res = await communicationApi.testSmsProvider(testProviderId, testMobile, testMessage)
       if (res.success) {
-        toast.success(res.message || `Test SMS dispatched successfully to ${testMobile}`)
+        adminToast.success('Test SMS sent successfully.', res.message || `Test SMS dispatched successfully to ${testMobile}`)
         setShowTestModal(false)
       } else {
-        toast.error(res.message || 'SMS transmission failed.')
+        adminToast.error('Failed to send test SMS.', res.message || 'SMS transmission failed.')
       }
     } catch (err: any) {
       console.error('Test SMS send failed:', err)
-      toast.error(err?.message || 'Failed to trigger SMS gateway transmission.')
+      adminToast.error('Failed to trigger SMS gateway transmission.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setActionLoading(false)
     }

@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Badge, Button, Card, Col, Row, Spinner, Table, Form } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import ApiErrorState from '@/components/common/ApiErrorState'
 import { EmptyState, StatusBadge } from '@/components/dashboard/DashboardComponents'

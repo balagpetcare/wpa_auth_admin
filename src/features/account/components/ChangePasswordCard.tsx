@@ -4,11 +4,12 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import * as yup from 'yup'
 import { Button, Card, Spinner } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import PasswordFormInput from '@/components/form/PasswordFormInput'
 import { accountApi } from '@/features/account/api'
 import { ChangePasswordPayload } from '@/features/account/types'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 interface ChangePasswordFormValues {
   currentPassword: string
@@ -47,10 +48,10 @@ const ChangePasswordCard = ({ lastPasswordChangedAt }: ChangePasswordCardProps) 
     try {
       const payload: ChangePasswordPayload = values
       await accountApi.changeMyPassword(payload)
-      toast.success('Password changed successfully. Other active sessions have been signed out.')
+      adminToast.success('Password changed successfully.', 'Other active sessions have been signed out.')
       reset({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to change password.')
+      adminToast.error('Failed to change password.', getAdminErrorMessage(err, 'Please try again.'))
     }
   }
 

@@ -13,12 +13,13 @@ import {
   Spinner,
   Alert
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { rolesPermissionsApi } from '@/features/roles-permissions/api'
 import { Role, Permission } from '@/features/roles-permissions/types'
 import { useAuth } from '@/context/useAuthContext'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { EmptyState, ErrorState } from '@/components/dashboard/DashboardComponents'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 export default function RolesPermissionsPage() {
   const { admin: currentAdmin } = useAuth()
@@ -88,7 +89,7 @@ export default function RolesPermissionsPage() {
       }
     } catch (err: any) {
       console.error('Failed to load role details:', err)
-      toast.error('Error retrieving granular role permissions.')
+      adminToast.error('Error retrieving granular role permissions.')
     } finally {
       setLoadingRoleDetails(false)
     }
@@ -145,7 +146,7 @@ export default function RolesPermissionsPage() {
           description: roleDescription,
         })
         if (res.success) {
-          toast.success('Role metadata updated successfully.')
+          adminToast.success('Role metadata updated successfully.', 'The role details were saved successfully.')
           loadData()
           if (selectedRoleId === editingRoleId) {
             loadRoleDetails(editingRoleId)
@@ -157,7 +158,7 @@ export default function RolesPermissionsPage() {
           description: roleDescription,
         })
         if (res.success) {
-          toast.success('New role successfully created.')
+          adminToast.success('New role successfully created.', 'The role is now available for assignment.')
           loadData()
           setSelectedRoleId(res.role.id)
         }
@@ -165,7 +166,7 @@ export default function RolesPermissionsPage() {
       setShowRoleModal(false)
     } catch (err: any) {
       console.error('Role mutation failed:', err)
-      toast.error(err?.message || 'Action failed.')
+      adminToast.error('Action failed.', getAdminErrorMessage(err, 'Please review the form and try again.'))
     } finally {
       setActionLoading(false)
     }
@@ -174,7 +175,7 @@ export default function RolesPermissionsPage() {
   const handleDeleteRole = async (roleId: string, roleName: string) => {
     const isSystemRole = ['super_admin', 'admin'].includes(roleName.toLowerCase())
     if (isSystemRole) {
-      toast.error('Security action denied: System default roles cannot be deleted.')
+      adminToast.error('Security action denied: System default roles cannot be deleted.')
       return
     }
 
@@ -186,13 +187,13 @@ export default function RolesPermissionsPage() {
     try {
       const res = await rolesPermissionsApi.deleteRole(roleId)
       if (res.success) {
-        toast.success(`Role "${roleName}" has been successfully removed.`)
+        adminToast.success(`Role "${roleName}" has been successfully removed.`, 'The role was deleted successfully.')
         setSelectedRoleId(null)
         loadData()
       }
     } catch (err: any) {
       console.error('Delete role failed:', err)
-      toast.error(err?.message || 'Failed to remove role. Check if users are still assigned to it.')
+      adminToast.error('Failed to remove role.', getAdminErrorMessage(err, 'Check if users are still assigned to it.'))
     } finally {
       setActionLoading(false)
     }
@@ -225,12 +226,12 @@ export default function RolesPermissionsPage() {
         permissionIds: pendingPermissionIds,
       })
       if (res.success) {
-        toast.success(`Permissions matrix updated for role: ${selectedRole.name}`)
+        adminToast.success(`Permissions matrix updated for role: ${selectedRole.name}`, 'The permission matrix was saved successfully.')
         loadRoleDetails(selectedRoleId)
       }
     } catch (err: any) {
       console.error('Matrix save failed:', err)
-      toast.error(err?.message || 'Failed to update permissions matrix.')
+      adminToast.error('Failed to update permissions matrix.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setSavingMatrix(false)
     }

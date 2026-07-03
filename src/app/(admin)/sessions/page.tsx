@@ -13,12 +13,13 @@ import {
   Spinner,
   Alert
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { sessionsApi } from '@/features/sessions/api'
 import { adminUsersApi } from '@/features/admin-users/api'
 import { ActiveSession } from '@/features/sessions/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { StatusBadge, EmptyState, ErrorState } from '@/components/dashboard/DashboardComponents'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 export default function SessionsPage() {
   const [sessions, setSessions] = useState<ActiveSession[]>([])
@@ -105,19 +106,19 @@ export default function SessionsPage() {
       if (type === 'revoke') {
         const res = await sessionsApi.revokeSession(targetId)
         if (res.success) {
-          toast.success('Session revoked successfully.')
+          adminToast.success('Session revoked successfully.', 'The active session was revoked.')
           loadSessions()
         }
       } else if (type === 'revoke-user-all') {
         const res = await adminUsersApi.revokeUserSessions(targetId)
         if (res.success) {
-          toast.success('All administrative sessions for this user revoked.')
+          adminToast.success('All administrative sessions for this user revoked.', 'The user session list was cleared successfully.')
           loadSessions()
         }
       }
     } catch (err: any) {
       console.error('Revocation failed:', err)
-      toast.error(err?.message || 'Action failed.')
+      adminToast.error('Action failed.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setActionLoading(false)
       setShowConfirmModal(false)

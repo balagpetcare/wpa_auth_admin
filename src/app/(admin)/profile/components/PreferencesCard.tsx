@@ -5,12 +5,13 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { useForm } from 'react-hook-form'
 import * as yup from 'yup'
 import { Button, Card, Col, FormCheck, Row, Spinner } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import TextFormInput from '@/components/form/TextFormInput'
 import SelectFormInput from '@/components/form/SelectFormInput'
 import { accountApi } from '@/features/account/api'
 import { AccountProfile } from '@/features/account/types'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
@@ -68,9 +69,9 @@ const PreferencesCard = ({ account, onUpdated }: PreferencesCardProps) => {
     try {
       const res = await accountApi.updateMyAccount({ interfacePreferences: values })
       onUpdated(res.account)
-      toast.success('Preferences updated successfully.')
+      adminToast.success('Preferences updated successfully.', 'Your display preferences were saved successfully.')
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update preferences.')
+      adminToast.error('Failed to update preferences.', getAdminErrorMessage(err, 'Please try again.'))
     }
   }
 

@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Badge, Button, Card, Col, Form, Modal, Offcanvas, Row, Spinner, Table } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import ApiErrorState from '@/components/common/ApiErrorState'
 import { EmptyState, StatusBadge } from '@/components/dashboard/DashboardComponents'
@@ -11,6 +10,8 @@ import { apiClient, ApiError } from '@/lib/apiClient'
 import { endUsersApi } from '@/features/end-users/api'
 import { EndUser, EndUserDetail, EndUserPresence } from '@/features/end-users/types'
 import { useAuth } from '@/context/useAuthContext'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 type ListState = {
   items: EndUser[]
@@ -185,7 +186,7 @@ export default function EndUsersPage() {
       if (detailResponse.success) setSelectedUser(detailResponse.user)
       if (presenceResponse?.success) setPresence(presenceResponse.presence)
     } catch (err) {
-      toast.error('Failed to load user details.')
+      adminToast.error('Failed to load user details.')
     } finally {
       setDetailLoading(false)
     }
@@ -196,12 +197,12 @@ export default function EndUsersPage() {
     try {
       const res = await endUsersApi.updateStatus(user.id, status)
       if (res.success) {
-        toast.success(`User status updated to ${status}.`)
+        adminToast.success(`User status updated to ${status}.`, 'The end user status was updated successfully.')
         load()
         if (selectedUser?.id === user.id) setSelectedUser({ ...selectedUser, status })
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update user status.')
+      adminToast.error('Failed to update user status.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setActionLoading(false)
     }

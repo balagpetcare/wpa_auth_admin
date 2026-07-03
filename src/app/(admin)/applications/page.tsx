@@ -14,7 +14,6 @@ import {
   Alert,
   Offcanvas
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { applicationsApi } from '@/features/applications/api'
 import { ClientApplication } from '@/features/applications/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
@@ -24,6 +23,8 @@ import {
   EmptyState,
   ErrorState
 } from '@/components/dashboard/DashboardComponents'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 export default function ApplicationsPage() {
   const [clients, setClients] = useState<ClientApplication[]>([])
@@ -94,7 +95,7 @@ export default function ApplicationsPage() {
   // Copy to clipboard helper
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
-    toast.success(`${label} copied to clipboard!`)
+    adminToast.success(`${label} copied to clipboard!`, 'The value was copied to the clipboard.')
   }
 
   // --- MUTATIONS ---
@@ -116,7 +117,7 @@ export default function ApplicationsPage() {
       })
 
       if (response.success && response.client) {
-        toast.success(`Application "${appName}" successfully registered.`)
+        adminToast.success(`Application "${appName}" successfully registered.`, 'The client application was created successfully.')
         setShowCreateModal(false)
 
         // Clear create form
@@ -135,7 +136,7 @@ export default function ApplicationsPage() {
       }
     } catch (err: any) {
       console.error('Create application failed:', err)
-      toast.error(err?.message || 'Failed to register client application.')
+      adminToast.error('Failed to register client application.', getAdminErrorMessage(err, 'Please review the form and try again.'))
     } finally {
       setActionLoading(false)
     }
@@ -160,7 +161,7 @@ export default function ApplicationsPage() {
       if (type === 'suspend') {
         const res = await applicationsApi.updateClientStatus(clientId, 'SUSPENDED')
         if (res.success) {
-          toast.success('Application status changed to SUSPENDED.')
+          adminToast.success('Application status changed to SUSPENDED.', 'The client application was suspended successfully.')
           loadClients()
           if (selectedClient?.id === clientId) {
             setSelectedClient({ ...selectedClient, status: 'SUSPENDED' })
@@ -169,7 +170,7 @@ export default function ApplicationsPage() {
       } else if (type === 'activate') {
         const res = await applicationsApi.updateClientStatus(clientId, 'ACTIVE')
         if (res.success) {
-          toast.success('Application status activated.')
+          adminToast.success('Application status activated.', 'The client application was activated successfully.')
           loadClients()
           if (selectedClient?.id === clientId) {
             setSelectedClient({ ...selectedClient, status: 'ACTIVE' })
@@ -180,12 +181,12 @@ export default function ApplicationsPage() {
         if (res.success && res.clientSecret) {
           setNewlyCreatedSecret(res.clientSecret)
           setShowSecretModal(true)
-          toast.success('Client secret regenerated successfully.')
+          adminToast.success('Client secret regenerated successfully.', 'A new client secret was generated.')
         }
       }
     } catch (err: any) {
       console.error('Action failed:', err)
-      toast.error(err?.message || 'Action request failed.')
+      adminToast.error('Action request failed.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setActionLoading(false)
       setShowConfirmModal(false)
@@ -213,14 +214,14 @@ export default function ApplicationsPage() {
       })
 
       if (res.success && res.client) {
-        toast.success('Application properties updated.')
+        adminToast.success('Application properties updated.', 'The client application was saved successfully.')
         setIsEditing(false)
         setSelectedClient(res.client)
         loadClients()
       }
     } catch (err: any) {
       console.error('Update client failed:', err)
-      toast.error(err?.message || 'Failed to save application modifications.')
+      adminToast.error('Failed to save application modifications.', getAdminErrorMessage(err, 'Please review the updated values and try again.'))
     } finally {
       setActionLoading(false)
     }

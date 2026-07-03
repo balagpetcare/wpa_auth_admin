@@ -11,7 +11,6 @@ import {
   Spinner,
   Alert
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import Link from 'next/link'
 import { sessionsApi } from '@/features/sessions/api'
 import { accountApi } from '@/features/account/api'

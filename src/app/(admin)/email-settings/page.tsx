@@ -12,11 +12,12 @@ import {
   Badge,
   Spinner
 } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { communicationApi } from '@/features/communication/api'
 import { CommProvider, EmailTemplate, EmailBranding } from '@/features/communication/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { StatusBadge, ErrorState, EmptyState } from '@/components/dashboard/DashboardComponents'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 export default function EmailSettingsPage() {
   const [providers, setProviders] = useState<CommProvider[]>([])
@@ -87,12 +88,12 @@ export default function EmailSettingsPage() {
         logoUrl,
       })
       if (res.success && res.data) {
-        toast.success('Email branding settings successfully updated.')
+        adminToast.success('Email branding settings successfully updated.', 'The email branding configuration was saved successfully.')
         setBranding(res.data)
       }
     } catch (err: any) {
       console.error('Branding update failed:', err)
-      toast.error(err?.message || 'Failed to update email branding.')
+      adminToast.error('Failed to update email branding.', getAdminErrorMessage(err, 'Please review the settings and try again.'))
     } finally {
       setActionLoading(false)
     }
@@ -118,12 +119,12 @@ export default function EmailSettingsPage() {
         ipAddress: '127.0.0.1',
       })
       if (res.success) {
-        toast.success(res.message || `Test email dispatched to ${testEmail}`)
+        adminToast.success('Test email sent successfully.', res.message || `Test email dispatched to ${testEmail}`)
         setShowTestModal(false)
       }
     } catch (err: any) {
       console.error('Test send failed:', err)
-      toast.error(err?.message || 'Failed to send test email template.')
+      adminToast.error('Failed to send test email.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setActionLoading(false)
     }

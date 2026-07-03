@@ -6,7 +6,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { Row, Col, Card, Form, Button, Spinner, Alert, Badge } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { communicationApi } from '@/features/communication/api'
 import { ClientBranding } from '@/features/communication/types'
 import { applicationsApi } from '@/features/applications/api'
@@ -14,6 +13,8 @@ import { ClientApplication } from '@/features/applications/types'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import ApiErrorState from '@/components/common/ApiErrorState'
 import { ApiError } from '@/lib/apiClient'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 const emptyForm: Partial<ClientBranding> = {
   logoUrl: '',
@@ -99,13 +100,13 @@ export default function AppEmailBrandingPage() {
       const { id, clientId, ...payload } = form as any
       const response = await communicationApi.updateClientBranding(selectedAppId, payload)
       if (response.success) {
-        toast.success('App branding saved successfully.')
+        adminToast.success('App branding saved successfully.', 'The branding profile was updated successfully.')
         setIsCustom(true)
         setForm(response.data)
       }
     } catch (error: any) {
       console.error('Failed to save app branding:', error)
-      toast.error(error?.message || 'Failed to save app branding.')
+      adminToast.error('Failed to save app branding.', getAdminErrorMessage(error, 'Please review the branding settings and try again.'))
     } finally {
       setSaving(false)
     }

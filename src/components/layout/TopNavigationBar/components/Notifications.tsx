@@ -73,12 +73,21 @@ export default function Notifications() {
     loadNotifications()
   }, [])
 
+  useEffect(() => {
+    const handler = () => {
+      void loadNotifications()
+    }
+    window.addEventListener('wpa_notifications_changed', handler)
+    return () => window.removeEventListener('wpa_notifications_changed', handler)
+  }, [])
+
   const handleClearAll = async (e: React.MouseEvent) => {
     e.preventDefault()
     try {
       await apiClient.patch('/admin/notifications/read-all')
       setItems((prev) => prev.map((notification) => ({ ...notification, status: 'READ' })))
       setUnreadCount(0)
+      window.dispatchEvent(new Event('wpa_notifications_changed'))
     } catch (err) {
       console.error('Failed to mark notifications read:', err)
     }

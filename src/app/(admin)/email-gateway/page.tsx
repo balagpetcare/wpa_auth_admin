@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/apiClient'
 import { communicationApi } from '@/features/communication/api'
 import { CommProvider } from '@/features/communication/types'
 import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 export default function EmailGatewayPage() {
   const [providers, setProviders] = useState<CommProvider[]>([])
@@ -18,6 +19,7 @@ export default function EmailGatewayPage() {
   const [environmentFilter, setEnvironmentFilter] = useState<'ALL' | 'SANDBOX' | 'LIVE'>('ALL')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE' | 'TESTING' | 'DISABLED'>('ALL')
   const [healthFilter, setHealthFilter] = useState<'ALL' | 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'DOWN'>('ALL')
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -113,10 +115,43 @@ export default function EmailGatewayPage() {
                         <Link href={`/email-gateway/${p.id}?panel=test`} className="btn btn-link p-0 text-info">
                           <IconifyIcon icon="solar:chat-round-bold-duotone" className="me-1" />Test
                         </Link>
-                        <Button variant="link" className="p-0 text-secondary" onClick={async () => { await communicationApi.healthCheckProvider(p.id); adminToast.success('Health check refreshed', 'The provider health snapshot was updated.'); }}>
+                        <Button
+                          variant="link"
+                          className="p-0 text-secondary"
+                          disabled={actionLoadingId === `${p.id}:health`}
+                          onClick={async () => {
+                            setActionLoadingId(`${p.id}:health`)
+                            try {
+                              await communicationApi.healthCheckProvider(p.id)
+                              adminToast.success('Health check refreshed', 'The provider health snapshot was updated.')
+                              await load()
+                            } catch (err) {
+                              adminToast.error('Health check failed', getAdminErrorMessage(err, 'Unable to refresh the provider health snapshot.'))
+                            } finally {
+                              setActionLoadingId(null)
+                            }
+                          }}
+                        >
                           <IconifyIcon icon="solar:heart-pulse-2-bold-duotone" className="me-1" />Health Check
                         </Button>
-                        <Button variant="link" className={p.status === 'ACTIVE' ? 'p-0 text-danger' : 'p-0 text-success'} onClick={async () => { if (p.status === 'ACTIVE') await communicationApi.deactivateProvider(p.id); else await communicationApi.activateProvider(p.id); adminToast.success('Provider status updated', 'The provider active state changed successfully.'); await load() }}>
+                        <Button
+                          variant="link"
+                          className={p.status === 'ACTIVE' ? 'p-0 text-danger' : 'p-0 text-success'}
+                          disabled={actionLoadingId === `${p.id}:status`}
+                          onClick={async () => {
+                            setActionLoadingId(`${p.id}:status`)
+                            try {
+                              if (p.status === 'ACTIVE') await communicationApi.deactivateProvider(p.id)
+                              else await communicationApi.activateProvider(p.id)
+                              adminToast.success('Provider status updated', 'The provider active state changed successfully.')
+                              await load()
+                            } catch (err) {
+                              adminToast.error('Provider status update failed', getAdminErrorMessage(err, 'Unable to update the provider status.'))
+                            } finally {
+                              setActionLoadingId(null)
+                            }
+                          }}
+                        >
                           <IconifyIcon icon={p.status === 'ACTIVE' ? 'solar:pause-bold-duotone' : 'solar:play-bold-duotone'} className="me-1" />
                           {p.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                         </Button>

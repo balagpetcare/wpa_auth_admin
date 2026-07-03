@@ -3,12 +3,13 @@
 import React, { useRef, useState } from 'react'
 import Image from 'next/image'
 import { Alert, Badge, Button, Card, Spinner } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import IconifyIcon from '@/components/wrappers/IconifyIcon'
 import { resolveAvatarUrl } from '@/lib/avatarUrl'
 import { accountApi } from '@/features/account/api'
 import { AccountProfile } from '@/features/account/types'
 import { StatusBadge } from '@/components/dashboard/DashboardComponents'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 interface ProfileHeroCardProps {
   account: AccountProfile
@@ -60,9 +61,10 @@ const ProfileHeroCard = ({ account, onAvatarChange }: ProfileHeroCardProps) => {
         await syncAvatarState()
       }
       setImgError(false)
-      toast.success(res.message || 'Profile picture updated successfully.')
+      adminToast.success('Profile picture updated successfully.', res.message || 'The profile image was updated successfully.')
     } catch (err: any) {
       setActionError(getUploadErrorMessage(err))
+      adminToast.error('Failed to update profile picture.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -80,9 +82,10 @@ const ProfileHeroCard = ({ account, onAvatarChange }: ProfileHeroCardProps) => {
         await syncAvatarState()
       }
       setImgError(false)
-      toast.success(res.message || 'Profile picture removed successfully.')
+      adminToast.success('Profile picture removed successfully.', res.message || 'The profile image was removed successfully.')
     } catch (err: any) {
       setActionError(err?.message || 'Failed to remove profile picture.')
+      adminToast.error('Failed to remove profile picture.', getAdminErrorMessage(err, 'Please try again.'))
     } finally {
       setUploading(false)
     }

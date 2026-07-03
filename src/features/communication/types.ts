@@ -145,6 +145,8 @@ export interface ProviderAuditLog {
   metadata?: Record<string, unknown> | null
   ipAddress?: string | null
   createdAt: string
+  actorAdmin?: { id: string; email?: string | null; username?: string | null; displayName?: string | null } | null
+  provider?: { id: string; name: string; code: string } | null
 }
 
 export interface EmailTemplate {

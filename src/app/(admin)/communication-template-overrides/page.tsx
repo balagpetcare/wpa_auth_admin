@@ -8,7 +8,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { Row, Col, Card, Form, Button, Spinner, Badge, Table } from 'react-bootstrap'
-import { toast } from 'react-toastify'
 import { communicationApi } from '@/features/communication/api'
 import { EmailTemplate } from '@/features/communication/types'
 import { applicationsApi } from '@/features/applications/api'
@@ -16,6 +15,8 @@ import { ClientApplication } from '@/features/applications/types'
 import { EmptyState } from '@/components/dashboard/DashboardComponents'
 import ApiErrorState from '@/components/common/ApiErrorState'
 import { ApiError } from '@/lib/apiClient'
+import adminToast from '@/lib/adminToast'
+import { getAdminErrorMessage } from '@/lib/adminErrorMessage'
 
 export default function TemplateOverridesPage() {
   const [apps, setApps] = useState<ClientApplication[]>([])
@@ -83,7 +84,7 @@ export default function TemplateOverridesPage() {
       }
     } catch (error) {
       console.error('Failed to load template detail:', error)
-      toast.error('Failed to load template content.')
+      adminToast.error('Failed to load template content.')
     }
   }
 
@@ -97,13 +98,13 @@ export default function TemplateOverridesPage() {
         const globalTpl = globalTemplates.find((t) => t.key === editingKey)
         if (globalTpl) {
           await communicationApi.updateEmailTemplate(globalTpl.id, formBody)
-          toast.success('Global template updated.')
+          adminToast.success('Global template updated.', 'The default template was saved successfully.')
         }
       } else {
         const existingOverride = appTemplates.find((t) => t.key === editingKey)
         if (existingOverride) {
           await communicationApi.updateEmailTemplate(existingOverride.id, formBody)
-          toast.success('Template override updated.')
+          adminToast.success('Template override updated.', 'The template override was saved successfully.')
         } else {
           await communicationApi.createEmailTemplateOverride({
             key: editingKey,
@@ -111,7 +112,7 @@ export default function TemplateOverridesPage() {
             locale: 'en',
             ...formBody,
           })
-          toast.success('Template override created.')
+          adminToast.success('Template override created.', 'The template override was created successfully.')
         }
       }
       setEditingKey(null)
@@ -119,7 +120,7 @@ export default function TemplateOverridesPage() {
       load()
     } catch (error: any) {
       console.error('Failed to save template override:', error)
-      toast.error(error?.message || 'Failed to save template override.')
+      adminToast.error('Failed to save template override.', getAdminErrorMessage(error, 'Please review the template and try again.'))
     } finally {
       setSaving(false)
     }
