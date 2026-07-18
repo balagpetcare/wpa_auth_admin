@@ -25,14 +25,6 @@ const providerIcons: Record<string, string> = {
 
 const providerOrder = ['GOOGLE', 'FACEBOOK', 'APPLE', 'MICROSOFT', 'LINKEDIN', 'TIKTOK', 'X', 'GITHUB', 'INSTAGRAM']
 
-const readinessMap: Record<string, { label: string; tone: string; description: string }> = {
-  GITHUB: { label: 'Direct login supported', tone: 'success', description: 'Reliable email via user:email' },
-  LINKEDIN: { label: 'Direct login supported', tone: 'success', description: 'Works when OIDC/email scopes are approved' },
-  TIKTOK: { label: 'May require completion', tone: 'warning', description: 'Email depends on approved scopes/product' },
-  X: { label: 'Email completion required', tone: 'danger', description: 'Email is often unavailable' },
-  INSTAGRAM: { label: 'Email completion required', tone: 'danger', description: 'Basic Display does not return email' },
-}
-
 const emptyForm: Partial<SocialProviderPayload> = {
   displayName: '',
   clientId: '',
@@ -65,6 +57,17 @@ function normalizeProvider(provider: SocialProvider, active: boolean): SocialPro
   return { ...provider, status: active ? 'ACTIVE' : 'INACTIVE' }
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return 'N/A'
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function getReadinessTone(provider: SocialProvider) {
+  if (provider.readiness?.readyForProduction) return 'success'
+  if ((provider.readiness?.warnings ?? []).length > 0) return 'warning'
+  return 'danger'
+}
+
 type PendingAction = {
   provider: SocialProvider
   kind: 'status' | 'test' | 'delete'
@@ -81,6 +84,7 @@ export default function SocialLoginProvidersPage() {
   const [saving, setSaving] = useState(false)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [providerMetadataText, setProviderMetadataText] = useState('')
   const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; confirmLabel: string; tone: 'danger' | 'primary' }>({
     open: false,
     title: '',
@@ -127,6 +131,7 @@ export default function SocialLoginProvidersPage() {
   const openCreate = () => {
     setSelected(null)
     setForm(emptyForm)
+    setProviderMetadataText('{}')
     setShowModal(true)
   }
 
@@ -148,6 +153,7 @@ export default function SocialLoginProvidersPage() {
       showOnLogin: provider.showOnLogin,
       provider: provider.provider,
     })
+    setProviderMetadataText(JSON.stringify(provider.providerMetadata ?? {}, null, 2))
     setShowModal(true)
   }
 
@@ -233,9 +239,9 @@ export default function SocialLoginProvidersPage() {
         const res = await socialProvidersApi.testProvider(provider.id)
         adminToast.success(
           `${provider.displayName} login provider test completed successfully.`,
-          (res as { data?: { configured?: boolean } }).data?.configured
-            ? 'Provider credentials appear configured.'
-            : 'Provider is missing credentials.',
+          (res as { data?: { readiness?: { readyForProduction?: boolean }; lastSuccessfulTestAt?: string | null } }).data?.readiness?.readyForProduction
+            ? `Provider is ready. Last successful test: ${formatDate((res as { data?: { lastSuccessfulTestAt?: string | null } }).data?.lastSuccessfulTestAt)}`
+            : 'Provider readiness still has blockers.',
         )
       }
       resetActionState()
@@ -254,6 +260,14 @@ export default function SocialLoginProvidersPage() {
     if (!form.provider && !selected?.provider) return
     setSaving(true)
     try {
+      let providerMetadata: Record<string, unknown> | undefined
+      if (providerMetadataText.trim()) {
+        const parsed = JSON.parse(providerMetadataText)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new Error('Provider metadata must be a JSON object.')
+        }
+        providerMetadata = parsed as Record<string, unknown>
+      }
       const payload: SocialProviderPayload = {
         displayName: form.displayName?.trim(),
         clientId: form.clientId?.trim() || undefined,
@@ -262,11 +276,15 @@ export default function SocialLoginProvidersPage() {
         userInfoUrl: form.userInfoUrl?.trim() || undefined,
         scopes: Array.isArray(form.scopes) ? form.scopes : splitScopes(String(form.scopes ?? '')),
         redirectUri: form.redirectUri?.trim(),
+        providerMetadata,
         status: form.status as any,
         environment: form.environment as any,
         placement: form.placement as any,
         sortOrder: Number(form.sortOrder ?? 0),
         showOnLogin: Boolean(form.showOnLogin),
+      }
+      if (providerMetadata !== undefined) {
+        payload.providerMetadata = providerMetadata
       }
       if (form.clientSecret?.trim()) payload.clientSecret = form.clientSecret.trim()
       if (!selected) {
@@ -289,7 +307,7 @@ export default function SocialLoginProvidersPage() {
   const stats = useMemo(() => ({
     total: providers.length,
     active: providers.filter((p) => isProviderActive(p)).length,
-    configured: providers.filter((p) => p.clientId && p.clientSecretEncrypted).length,
+    configured: providers.filter((p) => p.clientId && p.secretConfigured).length,
     loginVisible: providers.filter((p) => p.showOnLogin).length,
   }), [providers])
   const sortedProviders = useMemo(
@@ -398,14 +416,21 @@ export default function SocialLoginProvidersPage() {
                         {provider.clientId ? <Badge bg="soft-success" text="success">Configured</Badge> : <Badge bg="soft-danger" text="danger">Missing</Badge>}
                       </td>
                       <td>
-                        {provider.clientSecretEncrypted ? <Badge bg="soft-success" text="success">Configured</Badge> : <Badge bg="soft-danger" text="danger">Missing</Badge>}
+                        {provider.secretConfigured ? <Badge bg="soft-success" text="success">Encrypted</Badge> : <Badge bg="soft-danger" text="danger">Missing</Badge>}
                       </td>
                       <td>
                         <div className="d-flex flex-column gap-1">
-                          <Badge bg={`soft-${readinessMap[provider.provider]?.tone || 'secondary'}`} text={readinessMap[provider.provider]?.tone || 'secondary'}>
-                            {readinessMap[provider.provider]?.label || 'Direct login supported'}
+                          <Badge bg={provider.readiness?.readyForProduction ? 'soft-success' : (provider.readiness?.warnings?.length ? 'soft-warning' : 'soft-danger')} text={provider.readiness?.readyForProduction ? 'success' : (provider.readiness?.warnings?.length ? 'warning' : 'danger')}>
+                            {provider.readiness?.readyForProduction ? 'Ready for production' : 'Blocked'}
                           </Badge>
-                          <span className="text-muted fs-11">{readinessMap[provider.provider]?.description || 'Ready when credentials are configured'}</span>
+                          <span className="text-muted fs-11">
+                            {provider.readiness?.readyForProduction
+                              ? `Last successful test: ${formatDate(provider.lastSuccessfulTestAt)}`
+                              : provider.readiness?.blockers?.[0] || 'Ready when mandatory checks pass'}
+                          </span>
+                          {provider.readiness?.warnings?.length ? (
+                            <span className="text-warning fs-11">{provider.readiness.warnings[0]}</span>
+                          ) : null}
                         </div>
                       </td>
                       <td className="text-muted fs-12 font-monospace text-break">{provider.redirectUri}</td>
@@ -421,7 +446,7 @@ export default function SocialLoginProvidersPage() {
                             variant="link"
                             className={`p-0 text-decoration-none d-inline-flex align-items-center gap-1 ${isProviderActive(provider) ? 'text-danger' : 'text-success'}`}
                             onClick={() => openConfirm({ provider, kind: 'status', nextStatus: isProviderActive(provider) ? 'INACTIVE' : 'ACTIVE' })}
-                            disabled={isRowPending}
+                            disabled={isRowPending || (!isProviderActive(provider) && !provider.readiness?.readyForProduction)}
                           >
                             <IconifyIcon icon={isProviderActive(provider) ? 'solar:close-circle-bold-duotone' : 'solar:check-circle-bold-duotone'} />
                             {rowAction?.kind === 'status'
@@ -600,6 +625,45 @@ export default function SocialLoginProvidersPage() {
                 onChange={(e) => setForm((prev) => ({ ...prev, showOnLogin: e.target.checked }))}
               />
             </Col>
+            <Col md={12}>
+              <Form.Group>
+                <Form.Label>Provider Metadata JSON</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={8}
+                  value={providerMetadataText}
+                  onChange={(e) => setProviderMetadataText(e.target.value)}
+                  placeholder='{"verifiedDomainStatus":"approved","reviewStatus":"approved"}'
+                />
+                <Form.Text className="text-muted">
+                  Use this for provider-specific readiness flags such as review, verification, domain association, and callback status.
+                </Form.Text>
+              </Form.Group>
+            </Col>
+            {selected?.readiness ? (
+              <Col md={12}>
+                <Card className="border border-0 bg-light-subtle">
+                  <Card.Body>
+                    <div className="fw-semibold mb-2">Readiness summary</div>
+                    <div className={`mb-2 badge bg-${selected.readiness.readyForProduction ? 'success' : 'danger'}`}>
+                      {selected.readiness.readyForProduction ? 'Ready for production' : 'Blocked'}
+                    </div>
+                    <div className="small text-muted mb-2">
+                      {selected.readiness.readyForProduction
+                        ? `Last successful test: ${formatDate(selected.lastSuccessfulTestAt)}`
+                        : selected.readiness.blockers[0] || 'Mandatory checks are incomplete.'}
+                    </div>
+                    {selected.readiness.blockers.length > 0 ? (
+                      <ul className="mb-0 small">
+                        {selected.readiness.blockers.map((blocker) => (
+                          <li key={blocker}>{blocker}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </Card.Body>
+                </Card>
+              </Col>
+            ) : null}
           </Row>
         </Modal.Body>
         <Modal.Footer>

@@ -88,6 +88,12 @@ export const MENU_ITEMS: MenuItemType[] = [
     url: '/audit-logs',
   },
   {
+    key: 'deletion-requests',
+    label: 'Deletion Requests',
+    icon: 'solar:trash-bin-minimalistic-bold-duotone',
+    url: '/deletion-requests',
+  },
+  {
     key: 'security-events',
     label: 'Security Events',
     icon: 'solar:shield-warning-bold-duotone',
