@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: NextRequest) {
+function proxy(request: NextRequest) {
   const response = NextResponse.next()
 
   if (request.nextUrl.pathname === '/') {
@@ -14,4 +14,4 @@ export const config = {
   matcher: '/',
 }
 
-export { default } from 'next-auth/middleware'
+export default proxy

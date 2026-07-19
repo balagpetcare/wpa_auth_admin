@@ -4,6 +4,11 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
+        protocol: 'https',
+        hostname: 'auth.worldpetsassociation.com',
+        pathname: '/uploads/**',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
         port: '5010',
@@ -25,18 +30,6 @@ const nextConfig = {
         protocol: 'http',
         hostname: '127.0.0.1',
         port: '5011',
-        pathname: '/uploads/**',
-      },
-      {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '5010',
-        pathname: '/uploads/**',
-      },
-      {
-        protocol: 'http',
-        hostname: '127.0.0.1',
-        port: '5010',
         pathname: '/uploads/**',
       },
     ],
