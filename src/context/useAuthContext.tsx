@@ -54,6 +54,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshAdmin = async () => {
     const token = getAccessToken()
     if (!token) {
+      // Stage 2 (Central Auth SSO, docs referenced in
+      // src/app/api/auth/callback/central-auth/route.ts): no local-storage
+      // bearer token, but the browser may still hold an HttpOnly-cookie
+      // session from the Central Auth OAuth/PKCE login path. That cookie is
+      // never exposed to this client-side code by design - the only way to
+      // check it is to ask a Route Handler that reads it server-side. This
+      // recognizes the session for the app shell (admin state, redirect
+      // guards) but does NOT hand apiClient a token: data screens that call
+      // apiClient directly still require a localStorage token and will 401
+      // for a Central-Auth-only session (see Stage 2 report for follow-up).
+      try {
+        const res = await fetch('/api/auth/central-auth/session', { credentials: 'same-origin' })
+        if (res.ok) {
+          const data = await res.json().catch(() => null)
+          if (data?.authenticated && data?.user) {
+            setAdmin(data.user)
+            setAuthError(null)
+            setLoading(false)
+            return
+          }
+        }
+      } catch {
+        // Best-effort only - fall through to signed-out state below.
+      }
       setAdmin(null)
       setAuthError(null)
       setLoading(false)
@@ -125,6 +149,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Failed to perform API logout:', err)
     } finally {
+      // Stage 2 (Central Auth SSO): best-effort revoke + clear of the
+      // HttpOnly cookie session, if one exists. No-ops safely for
+      // local-login-only sessions - see
+      // src/app/api/auth/central-auth/logout/route.ts.
+      try {
+        await fetch('/api/auth/central-auth/logout', { method: 'POST', credentials: 'same-origin' })
+      } catch (err) {
+        console.error('Failed to revoke Central Auth session:', err)
+      }
       clearAuthTokens()
       setAdmin(null)
       setLoading(false)
