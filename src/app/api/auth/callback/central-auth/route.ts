@@ -37,8 +37,8 @@ interface TokenGrantResponse {
   expires_in: number
 }
 
-function redirectToSignInWithError(request: NextRequest, code: string) {
-  const url = new URL('/auth/sign-in', request.url)
+function redirectToSignInWithError(_request: NextRequest, code: string) {
+  const url = new URL('/auth/sign-in', centralAuthConfig.adminPanelUrl)
   url.searchParams.set('ssoError', code)
   return NextResponse.redirect(url)
 }
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
   }
 
   const returnTo = sanitizeReturnTo(stored.returnTo)
-  const response = NextResponse.redirect(new URL(returnTo, request.url))
+  const response = NextResponse.redirect(new URL(returnTo, centralAuthConfig.adminPanelUrl))
 
   const expiresAt = Date.now() + tokens.expires_in * 1000
   response.cookies.set(CENTRAL_AUTH_ACCESS_COOKIE, tokens.access_token, {

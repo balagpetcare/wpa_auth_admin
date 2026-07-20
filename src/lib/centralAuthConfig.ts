@@ -14,6 +14,7 @@ const API_BASE_URL = stripTrailingSlash(process.env.API_BASE_URL || process.env.
 const ADMIN_PANEL_URL = stripTrailingSlash(process.env.ADMIN_PANEL_URL || process.env.NEXT_PUBLIC_ADMIN_WEB_URL || 'https://auth-admin.worldpetsassociation.com')
 
 export const centralAuthConfig = {
+  adminPanelUrl: ADMIN_PANEL_URL,
   clientId: process.env.CENTRAL_AUTH_CLIENT_ID,
   clientSecret: process.env.CENTRAL_AUTH_CLIENT_SECRET,
 

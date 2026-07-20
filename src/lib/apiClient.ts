@@ -13,6 +13,7 @@ export class ApiError extends Error {
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5010/api/v1'
+const CENTRAL_AUTH_BFF_URL = '/api/central-auth-bff'
 import { clearAuthTokens, getAccessToken, setAccessToken, setRefreshToken, getRefreshToken } from './authTokens'
 
 const getAuthHeaders = (): Record<string, string> => {
@@ -96,20 +97,25 @@ async function request<T>(
   isRetry = false,
   rawBody?: FormData,
 ): Promise<T> {
+  const localAccessToken = getAccessToken()
   const headers: Record<string, string> = {
     ...(!rawBody && (method === 'POST' || method === 'PATCH') ? { 'Content-Type': 'application/json' } : {}),
     ...getAuthHeaders(),
     ...(options?.headers as Record<string, string>),
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  // Central-Auth-only sessions keep both tokens in HttpOnly cookies. When no
+  // legacy local token exists, use the same-origin BFF; local login continues
+  // to call the API directly as a temporary fallback.
+  const requestBaseUrl = localAccessToken ? BASE_URL : CENTRAL_AUTH_BFF_URL
+  const response = await fetch(`${requestBaseUrl}${path}`, {
     ...options,
     method,
     headers,
     body: rawBody ?? (body !== undefined ? JSON.stringify(body) : undefined),
   })
 
-  if (response.status === 401 && !isRetry) {
+  if (response.status === 401 && !isRetry && localAccessToken) {
     const refreshed = await refreshAccessToken()
     if (refreshed) {
       return request<T>(method, path, body, options, true, rawBody)

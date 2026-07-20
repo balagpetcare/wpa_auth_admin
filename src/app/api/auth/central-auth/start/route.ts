@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   if (!centralAuthConfig.clientId) {
     // Misconfiguration (missing CENTRAL_AUTH_CLIENT_ID) - fail generically,
     // do not surface any config detail to the browser.
-    return NextResponse.redirect(new URL('/auth/sign-in?ssoError=config', request.url))
+    return NextResponse.redirect(new URL('/auth/sign-in?ssoError=config', centralAuthConfig.adminPanelUrl))
   }
 
   const returnTo = sanitizeReturnTo(request.nextUrl.searchParams.get('returnTo'))

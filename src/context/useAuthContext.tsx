@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname()
 
   const sendPresenceHeartbeat = async () => {
-    if (!getAccessToken() || !admin || pathname?.startsWith('/auth/')) return
+    if (!admin || pathname?.startsWith('/auth/')) return
     try {
       await apiClient.post('/auth/presence/heartbeat', {})
     } catch {
@@ -60,10 +60,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // session from the Central Auth OAuth/PKCE login path. That cookie is
       // never exposed to this client-side code by design - the only way to
       // check it is to ask a Route Handler that reads it server-side. This
-      // recognizes the session for the app shell (admin state, redirect
-      // guards) but does NOT hand apiClient a token: data screens that call
-      // apiClient directly still require a localStorage token and will 401
-      // for a Central-Auth-only session (see Stage 2 report for follow-up).
+      // recognizes the session for the app shell. Data calls use the
+      // same-origin BFF when no legacy localStorage token is present.
       try {
         const res = await fetch('/api/auth/central-auth/session', { credentials: 'same-origin' })
         if (res.ok) {
